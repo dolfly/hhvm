@@ -54,23 +54,22 @@ inline folly::Optional<ContentType> RecordLayerUtils::parseAndRemoveContentType(
 inline std::unique_ptr<folly::IOBuf> RecordLayerUtils::writeEncryptedRecord(
     std::unique_ptr<folly::IOBuf> plaintext,
     Aead* aead,
-    folly::IOBuf* header,
+    const folly::IOBuf* header,
+    const folly::IOBuf* aad,
     uint64_t seqNum,
-    bool useAdditionalData,
     Aead::AeadOptions options) {
-  // Encrypt the data
-  auto cipherText = aead->encrypt(
-      std::move(plaintext),
-      useAdditionalData ? header : nullptr,
-      seqNum,
-      options);
+  // Encrypt the data using the provided AAD for integrity protection
+  auto cipherText = aead->encrypt(std::move(plaintext), aad, seqNum, options);
 
-  // Construct the final record
+  // Construct the final record with the header for on-wire framing
+  // Header is always required in StopTLSV2
+  DCHECK(header != nullptr);
+  DCHECK_GT(header->length(), 0);
+
   std::unique_ptr<folly::IOBuf> record;
-  if (!cipherText->isShared() &&
-      cipherText->headroom() >= kEncryptedHeaderSize) {
+  if (!cipherText->isShared() && cipherText->headroom() >= header->length()) {
     // Prepend the header to the ciphertext
-    cipherText->prepend(kEncryptedHeaderSize);
+    cipherText->prepend(header->length());
     memcpy(cipherText->writableData(), header->data(), header->length());
     record = std::move(cipherText);
   } else {
@@ -82,16 +81,17 @@ inline std::unique_ptr<folly::IOBuf> RecordLayerUtils::writeEncryptedRecord(
   return record;
 }
 
-inline folly::Optional<RecordLayerUtils::ParsedEncryptedRecord>
+inline RecordLayerUtils::ParsedEncryptedRecord
 RecordLayerUtils::parseEncryptedRecord(folly::IOBufQueue& buf) {
   using ContentTypeType = typename std::underlying_type<ContentType>::type;
 
   auto frontBuf = buf.front();
   folly::io::Cursor cursor(frontBuf);
 
-  if (buf.empty() || !cursor.canAdvance(kEncryptedHeaderSize)) {
-    return folly::none;
-  }
+  // Precondition: Caller must ensure buffer has at least kEncryptedHeaderSize
+  // bytes
+  DCHECK(!buf.empty() && cursor.canAdvance(kEncryptedHeaderSize))
+      << "parseEncryptedRecord called with insufficient buffer data";
 
   // Create additional data buffer from the header
   std::array<uint8_t, kEncryptedHeaderSize> ad{};
@@ -111,9 +111,10 @@ RecordLayerUtils::parseEncryptedRecord(folly::IOBufQueue& buf) {
   }
 
   auto consumedBytes = cursor - frontBuf;
-  if (buf.chainLength() < consumedBytes + length) {
-    return folly::none;
-  }
+
+  // Precondition: Caller must ensure buffer has enough data for full record
+  DCHECK_GE(buf.chainLength(), consumedBytes + length)
+      << "parseEncryptedRecord called with incomplete record data";
 
   if (contentType == ContentType::alert && length == 2) {
     auto alert = decode<Alert>(cursor);

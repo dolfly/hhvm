@@ -6,6 +6,8 @@
 #
 
 from __future__ import annotations
+import builtins
+
 
 import typing as _typing
 import types as _py_types
@@ -22,7 +24,7 @@ from thrift.python.common import RpcOptions
 import thrift.python.exceptions as _fbthrift_python_exceptions
 import thrift.python.types as _fbthrift_python_types
 import apache.thrift.fixtures.types.module.thrift_types as _fbthrift__apache__thrift__fixtures__types__module__thrift_types
-import apache.thrift.fixtures.types.module.thrift_metadata
+import apache.thrift.fixtures.types.module.thrift_metadata as _fbthrift__apache__thrift__fixtures__types__module__thrift_metadata
 import apache.thrift.fixtures.types.included.thrift_types as _fbthrift__apache__thrift__fixtures__types__included__thrift_types
 
 class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync"]):
@@ -43,7 +45,7 @@ class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync
     
     @staticmethod
     def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-        return apache.thrift.fixtures.types.module.thrift_metadata.gen_metadata_service_SomeService()
+        return _fbthrift__apache__thrift__fixtures__types__module__thrift_metadata.gen_metadata_service_SomeService()
     
     class Async(_fbthrift_python_AsyncClient):
         @staticmethod
@@ -56,14 +58,14 @@ class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return apache.thrift.fixtures.types.module.thrift_metadata.gen_metadata_service_SomeService()
+            return _fbthrift__apache__thrift__fixtures__types__module__thrift_metadata.gen_metadata_service_SomeService()
     
         async def bounce_map(
             self,
-            m: _typing.Mapping[int, str],
+            m: _typing.Mapping[builtins.int, builtins.str],
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Mapping[int, str]:
+        ) -> _typing.Mapping[builtins.int, builtins.str]:
             _fbthrift_resp = await self._send_request(
                 "SomeService",
                 "bounce_map",
@@ -84,10 +86,10 @@ class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync
     
         async def binary_keyed_map(
             self,
-            r: _typing.Sequence[int],
+            r: _typing.Sequence[builtins.int],
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Mapping[bytes, int]:
+        ) -> _typing.Mapping[builtins.bytes, builtins.int]:
             _fbthrift_resp = await self._send_request(
                 "SomeService",
                 "binary_keyed_map",
@@ -123,14 +125,14 @@ class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return apache.thrift.fixtures.types.module.thrift_metadata.gen_metadata_service_SomeService()
+            return _fbthrift__apache__thrift__fixtures__types__module__thrift_metadata.gen_metadata_service_SomeService()
     
         def bounce_map(
             self,
-            m: _typing.Mapping[int, str],
+            m: _typing.Mapping[builtins.int, builtins.str],
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Mapping[int, str]:
+        ) -> _typing.Mapping[builtins.int, builtins.str]:
             _fbthrift_resp = self._send_request(
                 "SomeService",
                 "bounce_map",
@@ -150,10 +152,10 @@ class SomeService(_fbthrift_python_Client["SomeService.Async", "SomeService.Sync
     
         def binary_keyed_map(
             self,
-            r: _typing.Sequence[int],
+            r: _typing.Sequence[builtins.int],
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Mapping[bytes, int]:
+        ) -> _typing.Mapping[builtins.bytes, builtins.int]:
             _fbthrift_resp = self._send_request(
                 "SomeService",
                 "binary_keyed_map",

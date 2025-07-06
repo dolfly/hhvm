@@ -401,7 +401,6 @@ impl HhConfig {
             tco_error_php_lambdas: default.tco_error_php_lambdas,
             tco_disallow_discarded_nullable_awaitables: default
                 .tco_disallow_discarded_nullable_awaitables,
-            tco_higher_kinded_types: default.tco_higher_kinded_types,
             tco_typecheck_sample_rate: hhconfig
                 .get_float_or("typecheck_sample_rate", default.tco_typecheck_sample_rate)?,
             tco_enable_sound_dynamic: hhconfig.get_bool_or(
@@ -601,6 +600,8 @@ impl HhConfig {
                 "class_pointer_ban_class_array_key",
                 default.class_pointer_ban_class_array_key,
             )?,
+            tco_poly_function_pointers: hhconfig
+                .get_bool_or("poly_function_pointers", default.tco_poly_function_pointers)?,
         };
         let mut c = Self {
             opts,

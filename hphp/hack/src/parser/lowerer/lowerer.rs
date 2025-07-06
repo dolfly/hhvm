@@ -3854,7 +3854,6 @@ fn rewrite_fun_ctx<'a>(
                         tparams.push(ast::Tparam {
                             variance: Variance::Invariant,
                             name: ast::Id(h.0.clone(), format!("T/[ctx {}]", name)),
-                            parameters: vec![],
                             constraints: vec![],
                             reified: ReifyKind::Erased,
                             user_attributes: Default::default(),
@@ -3907,7 +3906,6 @@ fn rewrite_effect_polymorphism<'a>(
     let tp = |name, v| ast::Tparam {
         variance: Variance::Invariant,
         name,
-        parameters: vec![],
         constraints: v,
         reified: ReifyKind::Erased,
         user_attributes: Default::default(),
@@ -4239,7 +4237,6 @@ fn p_tparam<'a>(is_class: bool, node: S<'a>, env: &mut Env<'a>) -> Result<ast::T
             reified,
             variance,
             name,
-            param_params,
             constraints,
         }) => {
             let user_attributes = p_user_attributes(attribute_spec, env);
@@ -4266,11 +4263,9 @@ fn p_tparam<'a>(is_class: bool, node: S<'a>, env: &mut Env<'a>) -> Result<ast::T
                 (true, false) => ast::ReifyKind::Reified,
                 _ => ast::ReifyKind::Erased,
             };
-            let parameters = p_tparam_l(is_class, param_params, env)?;
             Ok(ast::Tparam {
                 variance,
                 name: pos_name(name, env)?,
-                parameters,
                 constraints: could_map(constraints, env, p_tconstraint)?,
                 reified,
                 user_attributes,
@@ -4295,19 +4290,15 @@ fn p_hint_tparam<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::HintTparam> 
             reified,
             variance,
             name,
-            param_params,
             constraints,
         }) => {
-            // HKTs, user attributes with parameters, reified generics and
+            // User attributes with parameters, reified generics and
             // variance annotations are all disallowed
             if !reified.is_missing() {
                 raise_parsing_error(node, env, &syntax_error::polymorphic_function_hint_reified);
             }
             if !variance.is_missing() {
                 raise_parsing_error(node, env, &syntax_error::polymorphic_function_hint_variance);
-            }
-            if !param_params.is_missing() {
-                raise_parsing_error(node, env, &syntax_error::polymorphic_function_hint_hkt);
             }
 
             let type_name = text(name, env);

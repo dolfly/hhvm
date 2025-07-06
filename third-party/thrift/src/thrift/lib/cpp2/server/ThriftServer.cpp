@@ -51,7 +51,6 @@
 #include <thrift/lib/cpp2/Flags.h>
 #include <thrift/lib/cpp2/async/MultiplexAsyncProcessor.h>
 #include <thrift/lib/cpp2/runtime/Init.h>
-#include <thrift/lib/cpp2/server/ConcurrencyControllerInterfaceUnsafeAPI.h>
 #include <thrift/lib/cpp2/server/Cpp2Connection.h>
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp2/server/ExecutorToThreadManagerAdaptor.h>
@@ -89,6 +88,7 @@ FOLLY_GFLAGS_DEFINE_bool(
     "Do not register a TransportRoutingHandler that can handle the legacy transports: header, framed, and unframed (default: false)");
 
 THRIFT_FLAG_DEFINE_bool(server_enable_stoptls, false);
+THRIFT_FLAG_DEFINE_bool(server_enable_stoptlsv2, false);
 
 THRIFT_FLAG_DEFINE_bool(dump_snapshot_on_long_shutdown, true);
 
@@ -110,8 +110,8 @@ THRIFT_FLAG_DEFINE_bool(enable_rotation_for_in_memory_ticket_seeds, false);
 THRIFT_FLAG_DEFINE_bool(watch_default_ticket_path, true);
 THRIFT_FLAG_DEFINE_bool(
     init_decorated_processor_factory_only_resource_pools_checks, false);
-THRIFT_FLAG_DEFINE_bool(do_not_clobber_S532283, true);
 THRIFT_FLAG_DEFINE_bool(default_sync_max_requests_to_concurrency_limit, false);
+THRIFT_FLAG_DEFINE_bool(default_sync_max_qps_to_execution_rate, false);
 
 namespace apache::thrift::detail {
 THRIFT_PLUGGABLE_FUNC_REGISTER(
@@ -805,7 +805,7 @@ void ThriftServer::setup() {
               }
             });
         asyncScope_->add(
-            std::move(loop).scheduleOn(getHandlerExecutorKeepAlive()));
+            co_withExecutor(getHandlerExecutorKeepAlive(), std::move(loop)));
       }
     }
 #endif
@@ -1028,10 +1028,7 @@ void ThriftServer::setupThreadManagerImpl() {
                             .concurrencyController()) {
                   if (folly::test_once(
                           cancelSetMaxRequestsCallbackHandleFlag_)) {
-                    if (THRIFT_FLAG(do_not_clobber_S532283)) {
-                      return;
-                    }
-                    THRIFT_SERVER_EVENT(concurrencyLimitClobberedS532283);
+                    return;
                   }
                   cc.value().get().setExecutionLimitRequests(
                       maxRequests != 0
@@ -1057,32 +1054,38 @@ void ThriftServer::setupThreadManagerImpl() {
                         : std::numeric_limits<decltype(executionRate)>::max());
               }
             });
-    // ThriftServer's maxQps was historically synced to ConcurrencyController's
-    // qpsLimit. This syncing behavior will be removed, but for now we sync by
-    // default.
-    setMaxQpsCallbackHandle =
-        detail::getThriftServerConfig(*this)
-            .getMaxQps()
-            .getObserver()
-            .addCallback(
-                [this](const folly::observer::Snapshot<uint32_t>& snapshot) {
-                  auto maxQps = *snapshot;
-                  if (auto cc =
-                          resourcePoolSet()
-                              .resourcePool(ResourcePoolHandle::defaultAsync())
-                              .concurrencyController()) {
-                    if (folly::test_once(cancelSetMaxQpsCallbackHandleFlag_)) {
-                      if (THRIFT_FLAG(do_not_clobber_S532283)) {
+    if (THRIFT_FLAG(default_sync_max_qps_to_execution_rate)) {
+      // ThriftServer's maxQps was historically synced to
+      // ConcurrencyController's qpsLimit. This syncing behavior will be
+      // removed, but for now we sync by default. We are migrating away from
+      // this syncing behavior, but gate the functionality behind a flag for
+      // services that still rely on the behavior.
+      XLOG(WARN) << "--default_sync_max_qps_to_execution_rate=true. Please "
+                    "follow this guide to disable this. "
+                    "https://www.internalfb.com/wiki/"
+                    "Thrift_how_to_disable_sync_max_qps_to_execution_rate/";
+      setMaxQpsCallbackHandle =
+          detail::getThriftServerConfig(*this)
+              .getMaxQps()
+              .getObserver()
+              .addCallback(
+                  [this](const folly::observer::Snapshot<uint32_t>& snapshot) {
+                    auto maxQps = *snapshot;
+                    if (auto cc = resourcePoolSet()
+                                      .resourcePool(
+                                          ResourcePoolHandle::defaultAsync())
+                                      .concurrencyController()) {
+                      if (folly::test_once(
+                              cancelSetMaxQpsCallbackHandleFlag_)) {
                         return;
                       }
-                      THRIFT_SERVER_EVENT(executionRateClobberedS532283);
+                      cc.value().get().setQpsLimit(
+                          maxQps != 0
+                              ? maxQps
+                              : std::numeric_limits<decltype(maxQps)>::max());
                     }
-                    cc.value().get().setQpsLimit(
-                        maxQps != 0
-                            ? maxQps
-                            : std::numeric_limits<decltype(maxQps)>::max());
-                  }
-                });
+                  });
+    }
     // Create an adapter so calls to getThreadManager_deprecated will work
     // when we are using resource pools
     if (!threadManager_ &&
@@ -2054,60 +2057,6 @@ folly::Optional<OverloadResult> ThriftServer::checkOverload(
         LoadShedder::CUSTOM};
   }
 
-  // Log services that might break if ConcurrencyController's executionLimit is
-  // unsynced from maxRequests and is synced with only concurrencyLimit instead.
-  if (resourcePoolSet().empty() ||
-      folly::test_once(cancelSetMaxRequestsCallbackHandleFlag_) ||
-      folly::test_once(serviceReliesOnSyncedMaxRequestsFlag_)) {
-    // This is okay. If we're not using resource pools, syncing was cancelled
-    // because setConcurrencyLimit was explicitly called, or we've already
-    // detected and logged reliance on maxRequests syncing with
-    // concurrencyLimit, we don't need to check anything else.
-  } else if (
-      thriftConfig_.getMaxRequests().get() ==
-      thriftConfig_.getConcurrencyLimit().get()) {
-    // This is okay. When ConcurrencyController's executionLimit is synced with
-    // concurrencyLimit instead of maxRequests, there will be no difference
-    // since the values are the same.
-  } else if (
-      !isActiveRequestsTrackingDisabled() &&
-      !THRIFT_FLAG(enforce_queue_concurrency_resource_pools) &&
-      !getMethodsBypassMaxRequestsLimit().contains(method)) {
-    // This is okay. No bypass method is enabled. ThriftServer is strictly
-    // rejecting requests once there are maxRequests requests on the server.
-    // ConcurrencyController's will never enforce its executionLimit (synced
-    // from maxRequests) since ThriftServer will never pass enough requests into
-    // the resource pool. After ConcurrencyController's executionLimit is synced
-    // from concurrencyLimit instead, the new default value (uint32_t max) will
-    // continue to be greater than the number of requests that can be passed
-    // into the resource pool.
-  } else {
-    // This is not okay. When ConcurrencyController's executionLimit is unsynced
-    // from maxRequests and synced to concurrencyLimit instead, the service
-    // might encounter a behavioral change.
-    folly::call_once(serviceMightRelyOnSyncedMaxRequestsFlag_, [this]() {
-      XLOG(DBG) << "Service might rely on synced max requests.";
-      THRIFT_SERVER_EVENT(serviceMightRelyOnSyncedMaxRequests).log(*this);
-    });
-
-    if (auto concurrencyController =
-            resourcePoolSet()
-                .resourcePool(ResourcePoolHandle::defaultAsync())
-                .concurrencyController()) {
-      if (ConcurrencyControllerInterfaceUnsafeAPI(concurrencyController->get())
-              .getExecutionLimitRequestsHasBeenEnforced()) {
-        // Cncurrency limit has been enforced while still synced with
-        // maxRequests. This is the kind of case that absolutely must be
-        // migrated before completely decoupling maxRequests from
-        // concurrencyLimit.
-        folly::call_once(serviceReliesOnSyncedMaxRequestsFlag_, [this]() {
-          XLOG(DBG) << "Service relies on synced max requests.";
-          THRIFT_SERVER_EVENT(serviceReliesOnSyncedMaxRequests).log(*this);
-        });
-      }
-    }
-  }
-
   // If active request tracking is disabled or we are using resource pools,
   // skip max requests enforcement here. Resource pools has its own separate
   // concurrency limiting mechanism.
@@ -2128,58 +2077,6 @@ folly::Optional<OverloadResult> ThriftServer::checkOverload(
           kOverloadedErrorCode,
           "load shedding due to max request limit",
           loadShedder};
-    }
-  }
-
-  // Log services that might break if ConcurrencyController's qpsLimit is
-  // unsynced from maxQps and is synced with only concurrencyLimit instead.
-  if (resourcePoolSet().empty() ||
-      folly::test_once(cancelSetMaxQpsCallbackHandleFlag_) ||
-      folly::test_once(serviceReliesOnSyncedMaxQpsFlag_)) {
-    // This is okay. If we're not using resource pools, syncing was cancelled
-    // because setExecutionRate was explicitly called, or we've already detected
-    // and logged reliance on maxQps syncing with executionRate, we don't need
-    // to check anything else.
-  } else if (
-      thriftConfig_.getMaxQps().get() ==
-      thriftConfig_.getExecutionRate().get()) {
-    // This is okay. When ConcurrencyController's qpsLimit is synced with
-    // executionRate instead of maxQps, there will be no difference since the
-    // values are the same.
-  } else if (
-      !isActiveRequestsTrackingDisabled() &&
-      !getMethodsBypassMaxRequestsLimit().contains(method)) {
-    // This is okay. No bypass method is enabled. ThriftServer is strictly
-    // rejecting requests once there are maxQps requests on the server.
-    // ConcurrencyController's will never enforce its qpsLimit (synced from
-    // maxQps) since ThriftServer will never pass enough requests into the
-    // resource pool. After ConcurrencyController's qpsLimit is synced from
-    // concurrencyLimit instead, the new default value (uint32_t max) will
-    // continue to be greater than the rate of requests that can be passed into
-    // the resource pool.
-  } else {
-    // This is not okay. When ConcurrencyController's qpsLimit is unsynced from
-    // maxQps and synced to executionRate instead, the service might encounter a
-    // behavioral change.
-    folly::call_once(serviceMightRelyOnSyncedMaxQpsFlag_, [this]() {
-      XLOG(DBG) << "Service might rely on synced max qps.";
-      THRIFT_SERVER_EVENT(serviceMightRelyOnSyncedMaxQps).log(*this);
-    });
-
-    if (auto concurrencyController =
-            resourcePoolSet()
-                .resourcePool(ResourcePoolHandle::defaultAsync())
-                .concurrencyController()) {
-      if (ConcurrencyControllerInterfaceUnsafeAPI(concurrencyController->get())
-              .getQpsLimitHasBeenEnforced()) {
-        // ExecutionRate has been enforced while still synced with maxQps. This
-        // is the kind of case that absolutely must be migrated before
-        // completely decoupling maxQps from qpsLimit.
-        folly::call_once(serviceReliesOnSyncedMaxRequestsFlag_, [this]() {
-          XLOG(DBG) << "Service relies on synced max qps.";
-          THRIFT_SERVER_EVENT(serviceReliesOnSyncedMaxQps).log(*this);
-        });
-      }
     }
   }
 
@@ -2401,6 +2298,10 @@ ThriftServer::defaultNextProtocols() {
 
 folly::observer::Observer<bool> ThriftServer::enableStopTLS() {
   return THRIFT_FLAG_OBSERVE(server_enable_stoptls);
+}
+
+folly::observer::Observer<bool> ThriftServer::enableStopTLSV2() {
+  return THRIFT_FLAG_OBSERVE(server_enable_stoptlsv2);
 }
 
 folly::observer::Observer<bool> ThriftServer::enableReceivingDelegatedCreds() {

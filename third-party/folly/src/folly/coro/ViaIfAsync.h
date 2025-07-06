@@ -28,15 +28,14 @@
 #include <folly/coro/detail/Malloc.h>
 #include <folly/io/async/Request.h>
 #include <folly/lang/CustomizationPoint.h>
+#include <folly/lang/SafeAlias-fwd.h>
 #include <folly/tracing/AsyncStack.h>
 
 #include <glog/logging.h>
 
 #if FOLLY_HAS_COROUTINES
 
-namespace folly {
-
-namespace coro {
+namespace folly::coro {
 
 namespace detail {
 
@@ -281,6 +280,18 @@ class StackAwareViaIfAsyncAwaiter {
     return awaiter_.await_resume_try();
   }
 
+#if FOLLY_HAS_RESULT
+  template <
+      typename Awaiter2 = Awaiter,
+      typename Result =
+          decltype(FOLLY_DECLVAL(Awaiter2&).await_resume_result())>
+  Result await_resume_result() noexcept(
+      noexcept(FOLLY_DECLVAL(Awaiter2&).await_resume_result())) {
+    viaCoroutine_.destroy();
+    return awaiter_.await_resume_result();
+  }
+#endif
+
  private:
   CoroutineType viaCoroutine_;
   WithAsyncStackAwaitable awaitable_;
@@ -399,6 +410,18 @@ class ViaIfAsyncAwaiter {
     viaCoroutine_.destroy();
     return awaiter_.await_resume_try();
   }
+
+#if FOLLY_HAS_RESULT
+  template <
+      typename Awaiter2 = Awaiter,
+      typename Result =
+          decltype(FOLLY_DECLVAL(Awaiter2&).await_resume_result())>
+  Result await_resume_result() noexcept(
+      noexcept(FOLLY_DECLVAL(Awaiter2&).await_resume_result())) {
+    viaCoroutine_.destroy();
+    return awaiter_.await_resume_result();
+  }
+#endif
 
  private:
   CoroutineType viaCoroutine_;
@@ -737,6 +760,10 @@ class CommutativeWrapperAwaitable {
         }};
   }
 
+  template <
+      typename T2 = T,
+      typename = decltype(FOLLY_DECLVAL(T2&&).getUnsafeMover(
+          FOLLY_DECLVAL(ForMustAwaitImmediately)))>
   auto getUnsafeMover(ForMustAwaitImmediately p) && {
     // See "A note on object slicing" above `mustAwaitImmediatelyUnsafeMover`
     static_assert(sizeof(Derived<T>) == sizeof(T));
@@ -744,8 +771,11 @@ class CommutativeWrapperAwaitable {
         (Derived<T>*)nullptr, std::move(inner_).getUnsafeMover(p)};
   }
 
+  // IMPORTANT: If a commutative wrapper changes safety, immediate- or
+  // noexcept-awaitability, it must remember to override these:
   using folly_private_must_await_immediately_t = must_await_immediately_t<T>;
   using folly_private_noexcept_awaitable_t = noexcept_awaitable_t<T>;
+  using folly_private_safe_alias_t = safe_alias_of<T>;
 
  protected:
   T inner_;
@@ -828,7 +858,6 @@ detail::NothrowAwaitable<remove_cvref_t<Awaitable>> co_nothrow(
       mustAwaitImmediatelyUnsafeMover(std::move(awaitable))()};
 }
 
-} // namespace coro
-} // namespace folly
+} // namespace folly::coro
 
 #endif // FOLLY_HAS_COROUTINES

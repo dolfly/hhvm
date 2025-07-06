@@ -769,7 +769,7 @@ let do_hh_expect ~equivalent env use_pos explicit_targs p tys =
   match explicit_targs with
   | [targ] ->
     let ((env, ty_err_opt), (expected_ty, _)) =
-      Phase.localize_targ ~check_well_kinded:true env (snd targ)
+      Phase.localize_targ ~check_type_integrity:true env (snd targ)
     in
     Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
     let right_expected_ty =
@@ -900,7 +900,7 @@ let make_result env p te ty =
 
 let localize_targ env ta =
   let pos = fst ta in
-  let (env, targ) = Phase.localize_targ ~check_well_kinded:true env ta in
+  let (env, targ) = Phase.localize_targ ~check_type_integrity:true env ta in
   (env, targ, ExpectedTy.make pos Reason.URhint (fst targ))
 
 (* Set the function type to be capturing readonly values only *)
@@ -1473,7 +1473,7 @@ end = struct
     let ety_env = empty_expand_env in
     let ((env, tyargs_err_opt), ty_args) =
       Phase.localize_targs
-        ~check_well_kinded:true
+        ~check_type_integrity:true
         ~is_method:true
         ~def_pos
         ~use_pos
@@ -3620,8 +3620,148 @@ end = struct
         in
         Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
         make_result env p (Aast.Id id) ty)
-    | Method_caller (class_name, method_name) ->
+    | Method_caller (class_name, method_name)
+      when TypecheckerOptions.tco_poly_function_pointers env.genv.tcopt ->
       Method_caller.synth p (class_name, method_name) env
+    | Method_caller (((pos, class_name) as pos_cname), meth_name) ->
+      (* meth_caller(X::class, 'foo') desugars to:
+       * $x ==> $x->foo()
+       *)
+      let class_ = Env.get_class env class_name in
+      (match class_ with
+      | Decl_entry.NotYetAvailable
+      | Decl_entry.DoesNotExist ->
+        unbound_name env pos_cname outer
+      | Decl_entry.Found class_ ->
+        (* Create a class type for the given object instantiated with unresolved
+         * types for its type parameters.
+         *)
+        let () =
+          if Ast_defs.is_c_trait (Cls.kind class_) then
+            Typing_error_utils.add_typing_error
+              ~env
+              Typing_error.(
+                primary
+                @@ Primary.Meth_caller_trait { pos; trait_name = class_name })
+        in
+        let (env, tvarl) =
+          List.map_env env (Cls.tparams class_) ~f:(fun env _ ->
+              Env.fresh_type env p)
+        in
+        let params =
+          List.map (Cls.tparams class_) ~f:(fun { tp_name = (p, n); _ } ->
+              (* TODO(T69551141) handle type arguments for Tgeneric *)
+              MakeType.generic (Reason.witness_from_decl p) n)
+        in
+        let obj_type =
+          MakeType.apply
+            (Reason.witness_from_decl (Pos_or_decl.of_raw_pos p))
+            (Positioned.of_raw_positioned pos_cname)
+            params
+        in
+        let ety_env =
+          {
+            (empty_expand_env_with_on_error
+               (Typing_error.Reasons_callback.invalid_type_hint pos))
+            with
+            substs = TUtils.make_locl_subst_for_class_tparams class_ tvarl;
+          }
+        in
+        let ((env, ty_err_opt1), local_obj_ty) =
+          Phase.localize ~ety_env env obj_type
+        in
+        Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt1;
+        let ((env, ty_err_opt2), (fty, _tal)) =
+          TOG.obj_get
+            ~obj_pos:pos
+            ~is_method:true
+            ~nullsafe:None
+            ~meth_caller:true
+            ~coerce_from_ty:None
+            ~explicit_targs:[]
+              (* The CIstatic mode causes `this` to be interpreted as the non-exact type of the
+                 receiver, rather than an exact type. For example, meth_caller(C::class, 'get') for
+                 class C {
+                   get():this { return $this; }
+                 }
+                 should not be typed as
+                   (function(C):exact C)
+                 but rather as
+                   (function(C):C)
+                 because it might be called through a subclass. Ideally, if we supported first-class
+                 generics, we'd type it as
+                   (function<Tthis as C>(Tthis):Tthis)
+              *)
+            ~class_id:CIstatic
+            ~member_id:meth_name
+            ~on_error:Typing_error.Callback.unify_error
+            env
+            local_obj_ty
+        in
+        Option.iter ty_err_opt2 ~f:(Typing_error_utils.add_typing_error ~env);
+        let (_, env, fty) = TUtils.strip_supportdyn env fty in
+        let (env, fty) = Env.expand_type env fty in
+        (match deref fty with
+        | (reason, Tfun ftype) ->
+          (* We are creating a fake closure:
+           * function(Class $x, arg_types_of(Class::meth_name))
+                 : return_type_of(Class::meth_name)
+           *)
+          let ety_env =
+            {
+              ety_env with
+              on_error =
+                Some (Env.unify_error_assert_primary_pos_in_current_decl env);
+            }
+          in
+          let (env, ty_err_opt3) =
+            Phase.check_tparams_constraints
+              ~use_pos:p
+              ~ety_env
+              env
+              (Cls.tparams class_)
+          in
+          Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt3;
+          let local_obj_fp =
+            TUtils.default_fun_param
+              ~readonly:(get_ft_readonly_this ftype)
+              local_obj_ty
+          in
+          let fty =
+            { ftype with ft_params = local_obj_fp :: ftype.ft_params }
+          in
+          let caller =
+            {
+              ft_tparams = fty.ft_tparams;
+              ft_where_constraints = fty.ft_where_constraints;
+              ft_params = fty.ft_params;
+              ft_implicit_params = fty.ft_implicit_params;
+              ft_ret = fty.ft_ret;
+              ft_flags = fty.ft_flags;
+              ft_cross_package = fty.ft_cross_package;
+              ft_instantiated = fty.ft_instantiated;
+            }
+          in
+          let ty =
+            Typing_dynamic.maybe_wrap_with_supportdyn
+              ~should_wrap:(TCO.enable_sound_dynamic (Env.get_tcopt env))
+              reason
+              caller
+          in
+          (* The function type itself is readonly because we don't capture any values *)
+          let (env, ty) = set_capture_only_readonly env ty in
+          let ty =
+            make_function_ref
+              ~contains_generics:(not (List.is_empty fty.ft_tparams))
+              env
+              p
+              ty
+          in
+          make_result env p (Aast.Method_caller (pos_cname, meth_name)) ty
+        | _ ->
+          (* Shouldn't happen *)
+          let (env, ty) = Env.fresh_type_error env pos in
+          make_result env p (Aast.Method_caller (pos_cname, meth_name)) ty))
     | FunctionPointer (fp_id, targs) ->
       Function_pointer.synth p (fp_id, targs) env
     | Lplaceholder p ->
@@ -3807,26 +3947,55 @@ end = struct
       let env = might_throw ~join_pos:p env in
       let is_lvalue = Valkind.is_lvalue valkind in
       let (_, p1, _) = e1 in
-      let (env, (ty, arr_ty_mismatch_opt, key_ty_mismatch_opt)) =
-        Typing_array_access.array_get
-          ~expr_ty:ty1
-          ~array_pos:p1
-          ~expr_pos:p
-          ~lhs_of_null_coalesce
-          is_lvalue
+      if
+        TypecheckerOptions.constraint_array_index env.genv.tcopt
+        && not lhs_of_null_coalesce
+      then (
+        let (env, res_ty) = Env.fresh_type env p1 in
+        let (env, ty_err_opt) =
+          SubType.sub_type_i
+            env
+            (LoclType ty1)
+            (ConstraintType
+               (mk_constraint_type
+                  ( Reason.witness p,
+                    Tcan_index
+                      {
+                        ci_key = ty2;
+                        ci_shape = None;
+                        ci_val = res_ty;
+                        ci_expr_pos = p;
+                        ci_index_pos = snd3 e2;
+                      } )))
+            (Some (Typing_error.Reasons_callback.unify_error_at p))
+        in
+        Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
+        let (env, pess_res_ty) =
+          Typing_array_access.maybe_pessimise_type env res_ty
+        in
+        make_result env p (Aast.Array_get (te1, Some te2)) pess_res_ty
+      ) else
+        let (env, (ty, arr_ty_mismatch_opt, key_ty_mismatch_opt)) =
+          Typing_array_access.array_get
+            ~expr_ty:ty1
+            ~array_pos:p1
+            ~expr_pos:p
+            ~lhs_of_null_coalesce
+            is_lvalue
+            env
+            ty1
+            e2
+            ty2
+        in
+        make_result
           env
-          ty1
-          e2
-          ty2
-      in
-      make_result
-        env
-        p
-        (Aast.Array_get
-           ( hole_on_ty_mismatch ~ty_mismatch_opt:arr_ty_mismatch_opt te1,
-             Some (hole_on_ty_mismatch ~ty_mismatch_opt:key_ty_mismatch_opt te2)
-           ))
-        ty
+          p
+          (Aast.Array_get
+             ( hole_on_ty_mismatch ~ty_mismatch_opt:arr_ty_mismatch_opt te1,
+               Some
+                 (hole_on_ty_mismatch ~ty_mismatch_opt:key_ty_mismatch_opt te2)
+             ))
+          ty
     | Call
         { func = (_, pos_id, Id (_, s)) as e; targs; args; unpacked_arg = None }
       when Hash_set.mem typing_env_pseudofunctions s ->
@@ -6326,7 +6495,7 @@ end = struct
            * are still a parse error. This is a no-op if ft.ft_tparams is empty. *)
           let ((env, ty_err_opt1), implicit_constructor_targs) =
             Phase.localize_targs
-              ~check_well_kinded:true
+              ~check_type_integrity:true
               ~is_method:true
               ~def_pos
               ~use_pos:p
@@ -8394,11 +8563,67 @@ end = struct
     and expr = FunctionPointer (FP_id fun_id, ty_args) in
     make_result env pos expr ty
 
-  let synth pos (fpid, args) env =
+  let synth_poly pos (fpid, args) env =
     match (fpid, args) with
     | (FP_id fun_id, ty_args) -> synth_top_level pos fun_id ty_args env
     | (FP_class_const (class_id, method_name), ty_args) ->
       synth_static_method pos class_id method_name ty_args env
+
+  let synth_mono pos (fpid, args) env =
+    match (fpid, args) with
+    | (FP_class_const (cid, meth), targs) ->
+      let (env, _, ce, cty) =
+        Class_id.class_expr ~is_function_pointer:true env [] cid
+      in
+      let (env, (fpty, tal)) =
+        Class_get_expr.class_get
+          ~is_method:true
+          ~is_const:false
+          ~transform_fty:None
+          ~incl_tc:false (* What is this? *)
+          ~coerce_from_ty:None (* What is this? *)
+          ~explicit_targs:targs
+          ~is_function_pointer:true
+          env
+          cty
+          meth
+          cid
+      in
+      let env = Env.set_tyvar_variance env fpty in
+      let (env, fpty) = set_function_pointer env fpty in
+      (* All function pointers are readonly since they don't capture any values *)
+      let (env, fpty) = set_capture_only_readonly env fpty in
+      let fpty =
+        make_function_ref
+          ~contains_generics:(not (List.is_empty tal))
+          env
+          pos
+          fpty
+      in
+      make_result
+        env
+        pos
+        (Aast.FunctionPointer (FP_class_const (ce, meth), tal))
+        fpty
+    | (FP_id fun_id, ty_args) ->
+      let (env, ty, ty_args) = Fun_id.synth fun_id ty_args env in
+      let (env, ty) = set_function_pointer env ty in
+      (* All function pointers are readonly since they capture no values *)
+      let (env, ty) = set_capture_only_readonly env ty in
+      let ty =
+        make_function_ref
+          ~contains_generics:(not (List.is_empty ty_args))
+          env
+          pos
+          ty
+      in
+      make_result env pos (FunctionPointer (FP_id fun_id, ty_args)) ty
+
+  let synth pos fpid_args env =
+    if TypecheckerOptions.tco_poly_function_pointers env.genv.tcopt then
+      synth_poly pos fpid_args env
+    else
+      synth_mono pos fpid_args env
 end
 
 and Method_caller : sig
@@ -8527,7 +8752,7 @@ end = struct
       let expr = ((), pos, expr_) in
       unbound_name env class_name expr
     | Decl_entry.Found folded_class -> begin
-      match Folded_class.get_method folded_class (snd method_name) with
+      match Env.get_member true env folded_class (snd method_name) with
       | None ->
         let () =
           let err = unbound_method class_name method_name folded_class in
@@ -10733,7 +10958,7 @@ and Class_id : sig
   *     <expr>  CIexpr expr  expression that evaluates to an object or classname
   *)
   val class_expr :
-    ?check_targs_well_kinded:bool ->
+    ?check_targs_integrity:bool ->
     ?is_attribute_param:bool ->
     ?exact:exact ->
     ?check_explicit_targs:bool ->
@@ -10812,7 +11037,7 @@ and Class_id : sig
     newable_class_info
 end = struct
   let class_expr
-      ?(check_targs_well_kinded = false)
+      ?(check_targs_integrity = false)
       ?(is_attribute_param = false)
       ?(exact = nonexact)
       ?(check_explicit_targs = false)
@@ -10920,21 +11145,21 @@ end = struct
       make_result env [] Aast.CIself ty
     | CI ((p, id) as c) -> begin
       match Env.get_pos_and_kind_of_generic env id with
-      | Some (def_pos, kind) ->
-        let simple_kind = Typing_kinding_defs.Simple.from_full_kind kind in
-        let param_nkinds =
-          Typing_kinding_defs.Simple.get_named_parameter_kinds simple_kind
-        in
+      | Some (def_pos, _kind) ->
         let ((env, ty_err_opt), tal) =
-          Phase.localize_targs_with_kinds
-            ~check_well_kinded:check_targs_well_kinded
+          (* Since higher-kinded types are not supported, type parameter id cannot take arguments.
+             The following call performs some error handling if tal is non-empty, but its
+             elements are not actually localized. *)
+          let expected_tparams = [] in
+          Phase.localize_targs
+            ~check_type_integrity:check_targs_integrity
             ~is_method:true
             ~def_pos
             ~use_pos:p
             ~use_name:(strip_ns (snd c))
             ~check_explicit_targs
             env
-            param_nkinds
+            expected_tparams
             (List.map ~f:snd tal)
         in
         Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
@@ -10990,7 +11215,7 @@ end = struct
             List.map ~f:snd tal
             |> Phase.localize_targs_and_check_constraints
                  ~exact
-                 ~check_well_kinded:check_targs_well_kinded
+                 ~check_type_integrity:check_targs_integrity
                  ~def_pos:(Cls.pos class_)
                  ~use_pos:p
                  ~check_explicit_targs
@@ -11170,7 +11395,7 @@ end = struct
       (explicit_targs : Nast.targ list) : newable_class_info =
     let (env, tal, te, cid_ty) =
       class_expr
-        ~check_targs_well_kinded:true
+        ~check_targs_integrity:true
         ~check_explicit_targs:true
         ~exact
         ~is_attribute
@@ -12879,7 +13104,7 @@ end = struct
 
                 let ((env, ty_err_opt1), explicit_targs) =
                   Phase.localize_targs
-                    ~check_well_kinded:true
+                    ~check_type_integrity:true
                     ~is_method:true
                     ~def_pos
                     ~use_pos:p
@@ -13011,19 +13236,17 @@ and Tparam : sig
   val type_param :
     Typing_env_types.env -> Nast.tparam -> Typing_env_types.env * Tast.tparam
 end = struct
-  let rec type_param env (t : Nast.tparam) =
+  let type_param env (t : Nast.tparam) =
     let (env, user_attributes) =
       User_attribute.attributes_check_def
         env
         SN.AttributeKinds.typeparam
         t.tp_user_attributes
     in
-    let (env, tp_parameters) = List.map_env env t.tp_parameters ~f:type_param in
     ( env,
       {
         Aast.tp_variance = t.tp_variance;
         Aast.tp_name = t.tp_name;
-        Aast.tp_parameters;
         Aast.tp_constraints = t.tp_constraints;
         Aast.tp_reified = reify_kind t.tp_reified;
         Aast.tp_user_attributes = user_attributes;

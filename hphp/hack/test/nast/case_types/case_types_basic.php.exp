@@ -1,28 +1,26 @@
 [(Typedef
     { t_annotation = (); t_name = ([4:11-14], "\\CT1");
       t_tparams =
-      [{ tp_variance = Covariant; tp_name = ([4:16-18], "T1"); tp_parameters = [];
+      [{ tp_variance = Covariant; tp_name = ([4:16-18], "T1");
          tp_constraints = [(Constraint_as, ([4:16-18], (Happly (([4:16-18], "\\HH\\supportdyn"), [([4:16-18], Hmixed)])))); (Constraint_as, ([4:22-30], (Hprim Tarraykey)))]; 
          tp_reified = Erased; tp_user_attributes = [] };
-        { tp_variance = Contravariant; tp_name = ([4:33-35], "T2"); tp_parameters = [];
-          tp_constraints = [(Constraint_as, ([4:33-35], (Happly (([4:33-35], "\\HH\\supportdyn"), [([4:33-35], Hmixed)]))))]; 
+        { tp_variance = Contravariant; tp_name = ([4:33-35], "T2"); tp_constraints = [(Constraint_as, ([4:33-35], (Happly (([4:33-35], "\\HH\\supportdyn"), [([4:33-35], Hmixed)]))))];
           tp_reified = Erased; tp_user_attributes = [] };
-        { tp_variance = Invariant; tp_name = ([4:37-38], "T"); tp_parameters = []; 
-          tp_constraints = [(Constraint_as, ([4:37-38], (Happly (([4:37-38], "\\HH\\supportdyn"), [([4:37-38], Hmixed)]))))]; 
+        { tp_variance = Invariant; tp_name = ([4:37-38], "T"); tp_constraints = [(Constraint_as, ([4:37-38], (Happly (([4:37-38], "\\HH\\supportdyn"), [([4:37-38], Hmixed)]))))]; 
           tp_reified = Erased; tp_user_attributes = [] }
         ];
       t_as_constraint = (Some ([4:43-50], (Happly (([4:43-50], "\\HH\\supportdyn"), [([4:43-50], Hnonnull)])))); 
       t_super_constraint = None;
       t_assignment =
-      (CaseType ({ tctv_hint = ([4:53-63], (Happly (([4:53-59], "\\HH\\keyset"), [([4:60-62], (Habstr ("T1", [])))]))); tctv_where_constraints = [] },
+      (CaseType ({ tctv_hint = ([4:53-63], (Happly (([4:53-59], "\\HH\\keyset"), [([4:60-62], (Habstr "T1"))]))); tctv_where_constraints = [] },
          [{ tctv_hint =
             ([4:66-83],
              (Happly (([4:66-83], "\\HH\\supportdyn"),
                 [([4:66-83],
                   (Hfun
-                     { hf_is_readonly = None; hf_tparams = []; hf_param_tys = [([4:76-78], (Habstr ("T2", [])))];
+                     { hf_is_readonly = None; hf_tparams = []; hf_param_tys = [([4:76-78], (Habstr "T2"))];
                        hf_param_info = [(Some { hfparam_kind = Pnormal; hfparam_readonlyness = None; hfparam_optional = None; hfparam_splat = None })]; 
-                       hf_variadic_ty = None; hf_ctxs = None; hf_return_ty = ([4:81-82], (Hlike ([4:81-82], (Habstr ("T", []))))); 
+                       hf_variadic_ty = None; hf_ctxs = None; hf_return_ty = ([4:81-82], (Hlike ([4:81-82], (Habstr "T")))); 
                        hf_is_readonly_return = None }))
                   ]
                 )));
@@ -32,14 +30,14 @@
       t_runtime_type =
       ([4:53-83],
        (Hunion
-          [([4:53-63], (Happly (([4:53-59], "\\HH\\keyset"), [([4:60-62], (Habstr ("T1", [])))])));
+          [([4:53-63], (Happly (([4:53-59], "\\HH\\keyset"), [([4:60-62], (Habstr "T1"))])));
             ([4:66-83],
              (Happly (([4:66-83], "\\HH\\supportdyn"),
                 [([4:66-83],
                   (Hfun
-                     { hf_is_readonly = None; hf_tparams = []; hf_param_tys = [([4:76-78], (Habstr ("T2", [])))];
+                     { hf_is_readonly = None; hf_tparams = []; hf_param_tys = [([4:76-78], (Habstr "T2"))];
                        hf_param_info = [(Some { hfparam_kind = Pnormal; hfparam_readonlyness = None; hfparam_optional = None; hfparam_splat = None })]; 
-                       hf_variadic_ty = None; hf_ctxs = None; hf_return_ty = ([4:81-82], (Hlike ([4:81-82], (Habstr ("T", []))))); 
+                       hf_variadic_ty = None; hf_ctxs = None; hf_return_ty = ([4:81-82], (Hlike ([4:81-82], (Habstr "T")))); 
                        hf_is_readonly_return = None }))
                   ]
                 )))

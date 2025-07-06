@@ -17,12 +17,12 @@
 #include <folly/experimental/io/IoUringBackend.h>
 #include <thrift/conformance/stresstest/server/StressTestServer.h>
 
-#include <folly/portability/GFlags.h>
+#include <gflags/gflags.h>
 #include <wangle/ssl/SSLContextConfig.h>
 
 #include <thrift/conformance/stresstest/util/IoUringUtil.h>
+#include "common/services/cpp/TLSConfig.h"
 
-#include <scripts/rroeser/src/executor/WorkStealingExecutor.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
 #include <folly/executors/thread_factory/InitThreadFactory.h>
 #include <thrift/conformance/stresstest/server/StressTestServerModule.h>
@@ -55,8 +55,11 @@ DEFINE_int32(
     execution_rate,
     -1,
     "Configures execution rate. Special value -1 will skip setting execution rate. Special value 0 will set execution rate to maximum value.");
+DEFINE_bool(
+    default_sync_max_qps_to_execution_rate,
+    false,
+    "Sets Thrift Server's default_sync_max_qps_to_execution_rate flag.");
 DEFINE_bool(io_uring, false, "Enables io_uring if available when set to true");
-DEFINE_bool(work_stealing_executor, false, "Enable work stealing executor.");
 DEFINE_bool(
     parallel_concurrency_controller,
     false,
@@ -83,6 +86,8 @@ DEFINE_string(
     "Path to client trusted CA file");
 DEFINE_bool(enable_overload_checker, false, "Enable overload checker");
 DEFINE_bool(enable_resource_pools, false, "Enable resource pools");
+DEFINE_bool(stopTLSv1, false, "Enable stopTLS v1");
+DEFINE_bool(stopTLSv2, false, "Enable stopTLS v2");
 DEFINE_bool(
     disable_active_request_tracking, false, "Disabled Active Request Tracking");
 DEFINE_bool(enable_checksum, false, "Enable Server Side Checksum support");
@@ -111,12 +116,18 @@ uint32_t sanitizeNumThreads(int32_t n) {
 std::shared_ptr<wangle::SSLContextConfig> getSSLConfig() {
   auto sslConfig = std::make_shared<wangle::SSLContextConfig>();
   sslConfig->setCertificate(FLAGS_certPath.c_str(), FLAGS_keyPath.c_str(), "");
-  sslConfig->clientCAFiles = std::vector<std::string>{FLAGS_caPath.c_str()};
-  sslConfig->clientVerification =
-      folly::SSLContext::VerifyClientCertificate::IF_PRESENTED;
-  sslConfig->setNextProtocols(**ThriftServer::defaultNextProtocols());
-  sslConfig->sslCiphers =
-      folly::join(":", folly::ssl::SSLOptions2021::ciphers());
+  if (FLAGS_stopTLSv1) {
+    sslConfig->clientVerification =
+        folly::SSLContext::VerifyClientCertificate::DO_NOT_REQUEST;
+    sslConfig->setNextProtocols({"rs"});
+  } else {
+    sslConfig->clientCAFiles = std::vector<std::string>{FLAGS_caPath.c_str()};
+    sslConfig->clientVerification =
+        folly::SSLContext::VerifyClientCertificate::IF_PRESENTED;
+    sslConfig->setNextProtocols(**ThriftServer::defaultNextProtocols());
+    sslConfig->sslCiphers =
+        folly::join(":", folly::ssl::SSLOptions2021::ciphers());
+  }
   return sslConfig;
 }
 } // namespace
@@ -183,6 +194,8 @@ std::shared_ptr<ThriftServer> createStressTestServer(
       getIOThreadPool("thrift_eventbase", FLAGS_io_threads));
   server->setNumCPUWorkerThreads(numCpuWorkerThreads);
   server->addModule(std::make_unique<StressTestServerModule>());
+  facebook::services::TLSConfig tlsConfig;
+  tlsConfig.applyToThriftServer(server);
 
   if (FLAGS_enable_checksum) {
     LOG(INFO) << "Checksum support enabled";
@@ -212,6 +225,16 @@ std::shared_ptr<ThriftServer> createStressTestServer(
       !FLAGS_caPath.empty()) {
     LOG(INFO) << "SSL config enabled";
     server->setSSLConfig(getSSLConfig());
+    if (FLAGS_stopTLSv1 || FLAGS_stopTLSv2) {
+      ThriftTlsConfig thriftConfig;
+      thriftConfig.enableThriftParamsNegotiation = true;
+      if (FLAGS_stopTLSv1) {
+        thriftConfig.enableStopTLS = true;
+      } else {
+        thriftConfig.enableStopTLSV2 = true;
+      }
+      server->setThriftConfig(thriftConfig);
+    }
   }
 
   if (FLAGS_io_uring) {
@@ -219,12 +242,7 @@ std::shared_ptr<ThriftServer> createStressTestServer(
   }
 
   std::shared_ptr<folly::Executor> executor;
-  if (FLAGS_work_stealing_executor) {
-    LOG(INFO) << "WorkStealingExecutor enabled";
-    executor =
-        std::make_shared<folly::WorkStealingExecutor>(numCpuWorkerThreads);
-  } else if (
-      FLAGS_parallel_concurrency_controller ||
+  if (FLAGS_parallel_concurrency_controller ||
       FLAGS_se_parallel_concurrency_controller ||
       FLAGS_token_bucket_concurrency_controller) {
     LOG(INFO) << "CPUThreadPoolExecutor enabled";
@@ -290,6 +308,10 @@ std::shared_ptr<ThriftServer> createStressTestServer(
     LOG(INFO)
         << "Setting THRIFT_FLAG default_sync_max_requests_to_concurrency_limit: true";
     THRIFT_FLAG_SET_MOCK(default_sync_max_requests_to_concurrency_limit, true);
+  }
+  if (FLAGS_default_sync_max_qps_to_execution_rate == true) {
+    LOG(INFO) << "Setting defaultSyncMaxQpsToExecutionRate: true";
+    THRIFT_FLAG_SET_MOCK(default_sync_max_qps_to_execution_rate, true);
   }
 
   return server;

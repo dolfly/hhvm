@@ -49,8 +49,8 @@ struct SemiCalculatorHandler : apache::thrift::ServiceHandler<Calculator> {
     }
     folly::SemiFuture<folly::Unit> semifuture_accumulatePoint(
         std::unique_ptr<::apache::thrift::test::Point> a) override {
-      *pacc_.x_ref() += *a->x_ref();
-      *pacc_.y_ref() += *a->y_ref();
+      *pacc_.x() += *a->x();
+      *pacc_.y() += *a->y();
       return folly::makeSemiFuture();
     }
     int32_t getPrimitive() override { return acc_; }
@@ -486,8 +486,8 @@ struct CalculatorHandler : apache::thrift::ServiceHandler<Calculator> {
     folly::coro::Task<void> co_noop() override { co_return; }
     folly::coro::Task<void> co_accumulatePoint(
         std::unique_ptr<::apache::thrift::test::Point> a) override {
-      *pacc_.x_ref() += *a->x_ref();
-      *pacc_.y_ref() += *a->y_ref();
+      *pacc_.x() += *a->x();
+      *pacc_.y() += *a->y();
       co_return;
     }
     folly::coro::Task<int32_t> co_getPrimitive() override { co_return acc_; }
@@ -526,13 +526,13 @@ TEST(InteractionCodegenTest, Basic) {
     EXPECT_EQ(sum, 42);
 
     Point p;
-    p.x_ref() = 1;
+    p.x() = 1;
     co_await adder.co_accumulatePoint(p);
-    p.y_ref() = 2;
+    p.y() = 2;
     co_await adder.co_accumulatePoint(p);
     auto pacc = co_await adder.co_getPoint();
-    EXPECT_EQ(*pacc.x_ref(), 2);
-    EXPECT_EQ(*pacc.y_ref(), 2);
+    EXPECT_EQ(*pacc.x(), 2);
+    EXPECT_EQ(*pacc.y(), 2);
   }());
 #endif
 }
@@ -556,13 +556,13 @@ TEST(InteractionCodegenTest, RpcOptions) {
     EXPECT_EQ(sum, 42);
 
     Point p;
-    p.x_ref() = 1;
+    p.x() = 1;
     co_await adder.co_accumulatePoint(rpcOptions, p);
-    p.y_ref() = 2;
+    p.y() = 2;
     co_await adder.co_accumulatePoint(rpcOptions, p);
     auto pacc = co_await adder.co_getPoint(rpcOptions);
-    EXPECT_EQ(*pacc.x_ref(), 2);
-    EXPECT_EQ(*pacc.y_ref(), 2);
+    EXPECT_EQ(*pacc.x(), 2);
+    EXPECT_EQ(*pacc.y(), 2);
   }());
 #endif
 }
@@ -583,13 +583,13 @@ TEST(InteractionCodegenTest, BasicSemiFuture) {
   EXPECT_EQ(sum, 42);
 
   Point p;
-  p.x_ref() = 1;
+  p.x() = 1;
   adder.semifuture_accumulatePoint(p).get();
-  p.y_ref() = 2;
+  p.y() = 2;
   adder.semifuture_accumulatePoint(p).get();
   auto pacc = adder.semifuture_getPoint().get();
-  EXPECT_EQ(*pacc.x_ref(), 2);
-  EXPECT_EQ(*pacc.y_ref(), 2);
+  EXPECT_EQ(*pacc.x(), 2);
+  EXPECT_EQ(*pacc.y(), 2);
 }
 
 TEST(InteractionCodegenTest, BasicSync) {
@@ -608,14 +608,14 @@ TEST(InteractionCodegenTest, BasicSync) {
   EXPECT_EQ(sum, 42);
 
   Point p;
-  p.x_ref() = 1;
+  p.x() = 1;
   adder.sync_accumulatePoint(p);
-  p.y_ref() = 2;
+  p.y() = 2;
   adder.sync_accumulatePoint(p);
   Point pacc;
   adder.sync_getPoint(pacc);
-  EXPECT_EQ(*pacc.x_ref(), 2);
-  EXPECT_EQ(*pacc.y_ref(), 2);
+  EXPECT_EQ(*pacc.x(), 2);
+  EXPECT_EQ(*pacc.y(), 2);
 }
 
 TEST(InteractionCodegenTest, Error) {
@@ -1555,7 +1555,7 @@ class InternalPriorityTest : public testing::Test {
   };
   void SetUp() override {
     if (!FLAGS_thrift_experimental_use_resource_pools) {
-      GTEST_SKIP() << "This test is only relevant when resource pools is used";
+      return;
     }
     auto pile = std::make_unique<TestRequestPile>();
     auto cc = std::make_unique<ParallelConcurrencyController>(
@@ -1577,6 +1577,9 @@ class InternalPriorityTest : public testing::Test {
 };
 
 CO_TEST_F(InternalPriorityTest, FactoryFunction) {
+  if (!FLAGS_thrift_experimental_use_resource_pools) {
+    co_return;
+  }
   auto client = server_->newClient<Client<Calculator>>();
   auto [addition, _] = co_await client->co_initializedAddition(0);
   co_await addition.co_getPrimitive();
@@ -1584,6 +1587,9 @@ CO_TEST_F(InternalPriorityTest, FactoryFunction) {
 }
 
 CO_TEST_F(InternalPriorityTest, Constructor) {
+  if (!FLAGS_thrift_experimental_use_resource_pools) {
+    co_return;
+  }
   auto client = server_->newClient<Client<Calculator>>();
   auto addition = client->createAddition();
   co_await addition.co_getPrimitive();

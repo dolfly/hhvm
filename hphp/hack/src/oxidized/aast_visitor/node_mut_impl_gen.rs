@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<4f78786d281c622ef7715039c6b7f5f5>>
+// @generated SignedSource<<7736a9bfd654dba4f37756305a6f80dc>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -1504,10 +1504,7 @@ impl<P: Params> NodeMut<P> for Hint_ {
             Hint_::Hmixed => Ok(()),
             Hint_::Hwildcard => Ok(()),
             Hint_::Hnonnull => Ok(()),
-            Hint_::Habstr(a0, a1) => {
-                a0.accept(c, v)?;
-                a1.accept(c, v)
-            }
+            Hint_::Habstr(a0) => a0.accept(c, v),
             Hint_::HvecOrDict(a0, a1) => {
                 a0.accept(c, v)?;
                 a1.accept(c, v)
@@ -2248,7 +2245,6 @@ impl<P: Params> NodeMut<P> for Tparam<P::Ex, P::En> {
     ) -> Result<(), P::Error> {
         self.variance.accept(c, v)?;
         self.name.accept(c, v)?;
-        self.parameters.accept(c, v)?;
         self.constraints.accept(c, v)?;
         self.reified.accept(c, v)?;
         self.user_attributes.accept(c, v)

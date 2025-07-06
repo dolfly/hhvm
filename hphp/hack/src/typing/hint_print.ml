@@ -105,7 +105,7 @@ let rec pp_hint ~is_ctx ppf (pos, hint_) =
       (khint, vhint)
   | Aast.Happly ((p, name), hs) when is_ctx ->
     pp_hint ~is_ctx:false ppf (pos, Aast.Happly ((p, strip_ns name), hs))
-  | Aast.Habstr (name, [])
+  | Aast.Habstr name
   | Aast.Happly ((_, name), []) ->
     Fmt.string ppf name
   | Aast.Hclass_ptr (kind, h) ->
@@ -115,7 +115,6 @@ let rec pp_hint ~is_ctx ppf (pos, hint_) =
       | Aast.CKenum -> "enum"
     in
     Fmt.(prefix (const string kind) @@ angles @@ pp_hint ~is_ctx:false) ppf h
-  | Aast.Habstr (name, hints)
   | Aast.Happly ((_, name), hints) ->
     Fmt.(
       prefix (const string name)
@@ -557,7 +556,6 @@ let rec pp_tparam
       {
         tp_variance;
         tp_name = (_, name);
-        tp_parameters;
         tp_constraints;
         tp_reified;
         tp_user_attributes;
@@ -565,7 +563,7 @@ let rec pp_tparam
   Format.(
     fprintf
       ppf
-      {|%a %a %a%s %a %a |}
+      {|%a %a %a%s %a |}
       pp_user_attrs
       tp_user_attributes
       pp_tp_reified
@@ -573,8 +571,6 @@ let rec pp_tparam
       pp_variance
       tp_variance
       name
-      pp_tparams
-      tp_parameters
       Fmt.(list ~sep:sp pp_constraint)
       tp_constraints)
 

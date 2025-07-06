@@ -6,6 +6,8 @@
 #
 
 from __future__ import annotations
+import builtins
+
 
 import typing as _typing
 import types as _py_types
@@ -22,7 +24,7 @@ from thrift.python.common import RpcOptions
 import thrift.python.exceptions as _fbthrift_python_exceptions
 import thrift.python.types as _fbthrift_python_types
 import module.thrift_types as _fbthrift__module__thrift_types
-import module.thrift_metadata
+import module.thrift_metadata as _fbthrift__module__thrift_metadata
 
 class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Async", "PubSubStreamingService.Sync"]):
     annotations = _py_types.MappingProxyType({
@@ -42,7 +44,7 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
     @staticmethod
     def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-        return module.thrift_metadata.gen_metadata_service_PubSubStreamingService()
+        return _fbthrift__module__thrift_metadata.gen_metadata_service_PubSubStreamingService()
     
     class Async(_fbthrift_python_AsyncClient):
         @staticmethod
@@ -55,15 +57,15 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return module.thrift_metadata.gen_metadata_service_PubSubStreamingService()
+            return _fbthrift__module__thrift_metadata.gen_metadata_service_PubSubStreamingService()
     
         async def returnstream(
             self,
-            i32_from: int,
-            i32_to: int,
+            i32_from: builtins.int,
+            i32_to: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "returnstream",
@@ -80,10 +82,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def streamthrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "streamthrows",
@@ -99,10 +101,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def servicethrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "servicethrows",
@@ -121,10 +123,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def servicethrows2(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "servicethrows2",
@@ -146,10 +148,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def boththrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "boththrows",
@@ -168,10 +170,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def responseandstreamstreamthrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Tuple[int, _typing.AsyncGenerator[int, None]]:
+        ) -> _typing.Tuple[builtins.int, _typing.AsyncGenerator[builtins.int, None]]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "responseandstreamstreamthrows",
@@ -193,10 +195,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def responseandstreamservicethrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Tuple[int, _typing.AsyncGenerator[int, None]]:
+        ) -> _typing.Tuple[builtins.int, _typing.AsyncGenerator[builtins.int, None]]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "responseandstreamservicethrows",
@@ -221,10 +223,10 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def responseandstreamboththrows(
             self,
-            foo: int,
+            foo: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.Tuple[int, _typing.AsyncGenerator[int, None]]:
+        ) -> _typing.Tuple[builtins.int, _typing.AsyncGenerator[builtins.int, None]]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "responseandstreamboththrows",
@@ -249,11 +251,11 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         async def returnstreamFast(
             self,
-            i32_from: int,
-            i32_to: int,
+            i32_from: builtins.int,
+            i32_to: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> _typing.AsyncGenerator[int, None]:
+        ) -> _typing.AsyncGenerator[builtins.int, None]:
             _fbthrift_resp = await self._send_request(
                 "PubSubStreamingService",
                 "returnstreamFast",
@@ -299,5 +301,5 @@ class PubSubStreamingService(_fbthrift_python_Client["PubSubStreamingService.Asy
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return module.thrift_metadata.gen_metadata_service_PubSubStreamingService()
+            return _fbthrift__module__thrift_metadata.gen_metadata_service_PubSubStreamingService()
 

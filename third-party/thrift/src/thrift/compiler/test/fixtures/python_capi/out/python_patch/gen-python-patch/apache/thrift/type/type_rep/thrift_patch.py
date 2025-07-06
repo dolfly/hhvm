@@ -37,9 +37,6 @@ import apache.thrift.type.type_rep.thrift_types as _fbthrift__apache__thrift__ty
 import apache.thrift.type.gen_safe_patch_type_rep.thrift_types as _fbthrift_safe_patch_types
 
 
-import apache.thrift.type.id.thrift_types as _fbthrift__apache__thrift__type__id__thrift_types
-import apache.thrift.type.id.thrift_patch
-
 import apache.thrift.type.standard.thrift_types as _fbthrift__apache__thrift__type__standard__thrift_types
 import apache.thrift.type.standard.thrift_patch
 
@@ -63,7 +60,7 @@ class ProtocolUnionPatch(
             _fbthrift_python_types.EnumTypeInfo(_fbthrift__apache__thrift__type__standard__thrift_types.StandardProtocol))
     @property
     def custom(self) -> OptionalFieldPatch[
-            str,
+            builtins.str,
             StringPatch]:
 
         def cast_dynamic_patch_to_typed_field_patch(patch: DynamicPatch, type_info) -> StringPatch:
@@ -76,7 +73,7 @@ class ProtocolUnionPatch(
             _fbthrift_python_types.typeinfo_string)
     @property
     def id(self) -> OptionalFieldPatch[
-            int,
+            builtins.int,
             I64Patch]:
 
         def cast_dynamic_patch_to_typed_field_patch(patch: DynamicPatch, type_info) -> I64Patch:
@@ -211,7 +208,7 @@ class CompressionSpecStructPatch(
     pass
     @property
     def id(self) -> UnqualifiedFieldPatch[
-            int,
+            builtins.int,
             BytePatch]:
 
         def cast_dynamic_patch_to_typed_field_patch(patch: DynamicPatch, type_info) -> BytePatch:
@@ -224,7 +221,7 @@ class CompressionSpecStructPatch(
             _fbthrift_python_types.typeinfo_byte)
     @property
     def uncompressed_data_size_bytes(self) -> OptionalFieldPatch[
-            int,
+            builtins.int,
             I64Patch]:
 
         def cast_dynamic_patch_to_typed_field_patch(patch: DynamicPatch, type_info) -> I64Patch:
@@ -237,7 +234,7 @@ class CompressionSpecStructPatch(
             _fbthrift_python_types.typeinfo_i64)
     @property
     def compression_parameters(self) -> OptionalFieldPatch[
-            bytes,
+            builtins.bytes,
             BinaryPatch]:
 
         def cast_dynamic_patch_to_typed_field_patch(patch: DynamicPatch, type_info) -> BinaryPatch:

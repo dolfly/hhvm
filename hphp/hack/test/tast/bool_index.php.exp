@@ -21,7 +21,7 @@ Errors:
            param_pos = [3:21-23]; param_name = "$m"; param_info = Param_required; 
            param_readonly = None; param_splat = None; param_callconv = Pnormal; 
            param_user_attributes = []; param_visibility = None };
-          { param_annotation = (T); param_type_hint = ((T), (Some ([3:25-26], (Habstr ("T", []))))); 
+          { param_annotation = (T); param_type_hint = ((T), (Some ([3:25-26], (Habstr "T")))); 
             param_pos = [3:27-29]; param_name = "$t"; param_info = Param_required; 
             param_readonly = None; param_splat = None; param_callconv = Pnormal; 
             param_user_attributes = []; param_visibility = None };
@@ -58,8 +58,7 @@ Errors:
         f_external = false; f_doc_comment = None };
       fd_internal = false; fd_module = None;
       fd_tparams =
-      [{ tp_variance = Invariant; tp_name = ([3:12-13], "T"); tp_parameters = []; 
-         tp_constraints = [(Constraint_as, ([3:12-13], (Happly (([3:12-13], "\\HH\\supportdyn"), [([3:12-13], Hmixed)]))))]; 
+      [{ tp_variance = Invariant; tp_name = ([3:12-13], "T"); tp_constraints = [(Constraint_as, ([3:12-13], (Happly (([3:12-13], "\\HH\\supportdyn"), [([3:12-13], Hmixed)]))))]; 
          tp_reified = Erased; tp_user_attributes = [] }
         ];
       fd_where_constraints = []; fd_package = None })

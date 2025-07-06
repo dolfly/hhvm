@@ -6,6 +6,8 @@
 #
 
 from __future__ import annotations
+import builtins
+
 
 import typing as _typing
 import types as _py_types
@@ -22,7 +24,7 @@ from thrift.python.common import RpcOptions
 import thrift.python.exceptions as _fbthrift_python_exceptions
 import thrift.python.types as _fbthrift_python_types
 import python_module_root.my.namespacing.test.module.module.thrift_types as python_module_root__my__namespacing__test__module__module__thrift_types
-import python_module_root.my.namespacing.test.module.module.thrift_metadata
+import python_module_root.my.namespacing.test.module.module.thrift_metadata as python_module_root__my__namespacing__test__module__module__thrift_metadata
 
 class TestService(_fbthrift_python_Client["TestService.Async", "TestService.Sync"]):
     annotations = _py_types.MappingProxyType({
@@ -42,7 +44,7 @@ class TestService(_fbthrift_python_Client["TestService.Async", "TestService.Sync
     
     @staticmethod
     def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-        return python_module_root.my.namespacing.test.module.module.thrift_metadata.gen_metadata_service_TestService()
+        return python_module_root__my__namespacing__test__module__module__thrift_metadata.gen_metadata_service_TestService()
     
     class Async(_fbthrift_python_AsyncClient):
         @staticmethod
@@ -55,14 +57,14 @@ class TestService(_fbthrift_python_Client["TestService.Async", "TestService.Sync
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return python_module_root.my.namespacing.test.module.module.thrift_metadata.gen_metadata_service_TestService()
+            return python_module_root__my__namespacing__test__module__module__thrift_metadata.gen_metadata_service_TestService()
     
         async def init(
             self,
-            int1: int,
+            int1: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> int:
+        ) -> builtins.int:
             _fbthrift_resp = await self._send_request(
                 "TestService",
                 "init",
@@ -96,14 +98,14 @@ class TestService(_fbthrift_python_Client["TestService.Async", "TestService.Sync
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return python_module_root.my.namespacing.test.module.module.thrift_metadata.gen_metadata_service_TestService()
+            return python_module_root__my__namespacing__test__module__module__thrift_metadata.gen_metadata_service_TestService()
     
         def init(
             self,
-            int1: int,
+            int1: builtins.int,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> int:
+        ) -> builtins.int:
             _fbthrift_resp = self._send_request(
                 "TestService",
                 "init",

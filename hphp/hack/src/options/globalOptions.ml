@@ -140,7 +140,6 @@ type t = {
   symbol_write_sym_hash_out: bool;
   tco_error_php_lambdas: bool;
   tco_disallow_discarded_nullable_awaitables: bool;
-  tco_higher_kinded_types: bool;
   tco_typecheck_sample_rate: float;
   tco_enable_sound_dynamic: bool;
   tco_pessimise_builtins: bool;
@@ -205,6 +204,7 @@ type t = {
   class_pointer_ban_classname_static_meth: bool;
   class_pointer_ban_classname_class_const: bool;
   class_pointer_ban_class_array_key: bool;
+  tco_poly_function_pointers: bool;
 }
 [@@deriving eq, show]
 
@@ -262,7 +262,6 @@ let default =
     symbol_write_sym_hash_out = false;
     tco_error_php_lambdas = false;
     tco_disallow_discarded_nullable_awaitables = false;
-    tco_higher_kinded_types = false;
     tco_typecheck_sample_rate = 1.0;
     tco_enable_sound_dynamic = false;
     tco_pessimise_builtins = false;
@@ -328,6 +327,7 @@ let default =
     class_pointer_ban_classname_static_meth = false;
     class_pointer_ban_classname_class_const = false;
     class_pointer_ban_class_array_key = false;
+    tco_poly_function_pointers = false;
   }
 
 let set
@@ -383,7 +383,6 @@ let set
     ?symbol_write_sym_hash_out
     ?tco_error_php_lambdas
     ?tco_disallow_discarded_nullable_awaitables
-    ?tco_higher_kinded_types
     ?tco_typecheck_sample_rate
     ?tco_enable_sound_dynamic
     ?tco_pessimise_builtins
@@ -448,6 +447,7 @@ let set
     ?class_pointer_ban_classname_static_meth
     ?class_pointer_ban_classname_class_const
     ?class_pointer_ban_class_array_key
+    ?tco_poly_function_pointers
     options =
   let setting setting option =
     match setting with
@@ -587,8 +587,6 @@ let set
       setting
         tco_disallow_discarded_nullable_awaitables
         options.tco_disallow_discarded_nullable_awaitables;
-    tco_higher_kinded_types =
-      setting tco_higher_kinded_types options.tco_higher_kinded_types;
     tco_typecheck_sample_rate =
       setting tco_typecheck_sample_rate options.tco_typecheck_sample_rate;
     tco_enable_sound_dynamic =
@@ -779,6 +777,8 @@ let set
       setting
         class_pointer_ban_class_array_key
         options.class_pointer_ban_class_array_key;
+    tco_poly_function_pointers =
+      setting tco_poly_function_pointers options.tco_poly_function_pointers;
   }
 
 let so_naming_sqlite_path t = t.so_naming_sqlite_path

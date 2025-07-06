@@ -91,7 +91,6 @@ impl Default for GlobalOptions {
             symbol_write_referenced_out: None,
             symbol_write_reindexed_out: None,
             symbol_write_sym_hash_out: false,
-            tco_higher_kinded_types: false,
             tco_typecheck_sample_rate: 1.0,
             tco_enable_sound_dynamic: false,
             tco_pessimise_builtins: false,
@@ -156,6 +155,7 @@ impl Default for GlobalOptions {
             class_pointer_ban_classname_static_meth: false,
             class_pointer_ban_classname_class_const: false,
             class_pointer_ban_class_array_key: false,
+            tco_poly_function_pointers: false,
         }
     }
 }

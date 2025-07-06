@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<9af198d276cd2e7b8e054aa7a1a40d11>>
+// @generated SignedSource<<838e4dd663242281b7c2ed9f2b2cc0ce>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -1695,7 +1695,6 @@ pub struct Tparam<Ex, En> {
     #[rust_to_ocaml(attr = "transform.opaque")]
     pub variance: ast_defs::Variance,
     pub name: Sid,
-    pub parameters: Vec<Tparam<Ex, En>>,
     pub constraints: Vec<(ast_defs::ConstraintKind, Hint)>,
     #[rust_to_ocaml(attr = "transform.opaque")]
     pub reified: ReifyKind,
@@ -2759,7 +2758,7 @@ pub enum Hint_ {
     Hwildcard,
     Hnonnull,
     /// A type parameter
-    Habstr(String, Vec<Hint>),
+    Habstr(String),
     #[rust_to_ocaml(name = "Hvec_or_dict")]
     HvecOrDict(Option<Hint>, Hint),
     Hthis,

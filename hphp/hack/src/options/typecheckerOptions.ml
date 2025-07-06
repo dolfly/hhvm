@@ -149,8 +149,6 @@ let disallow_discarded_nullable_awaitables t =
 
 let is_systemlib t = t.GlobalOptions.po.ParserOptions.is_systemlib
 
-let higher_kinded_types t = t.GlobalOptions.tco_higher_kinded_types
-
 let enable_sound_dynamic t = t.GlobalOptions.tco_enable_sound_dynamic
 
 let enable_no_auto_dynamic t = t.GlobalOptions.tco_enable_no_auto_dynamic
@@ -354,3 +352,5 @@ let class_pointer_ban_classname_class_const t =
 
 let class_pointer_ban_class_array_key t =
   t.GlobalOptions.class_pointer_ban_class_array_key
+
+let tco_poly_function_pointers t = t.GlobalOptions.tco_poly_function_pointers

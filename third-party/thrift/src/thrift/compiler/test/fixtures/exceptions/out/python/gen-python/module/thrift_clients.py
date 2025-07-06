@@ -6,6 +6,8 @@
 #
 
 from __future__ import annotations
+import builtins
+
 
 import typing as _typing
 import types as _py_types
@@ -22,7 +24,7 @@ from thrift.python.common import RpcOptions
 import thrift.python.exceptions as _fbthrift_python_exceptions
 import thrift.python.types as _fbthrift_python_types
 import module.thrift_types as _fbthrift__module__thrift_types
-import module.thrift_metadata
+import module.thrift_metadata as _fbthrift__module__thrift_metadata
 
 class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
     annotations = _py_types.MappingProxyType({
@@ -42,7 +44,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
     
     @staticmethod
     def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-        return module.thrift_metadata.gen_metadata_service_Raiser()
+        return _fbthrift__module__thrift_metadata.gen_metadata_service_Raiser()
     
     class Async(_fbthrift_python_AsyncClient):
         @staticmethod
@@ -55,7 +57,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return module.thrift_metadata.gen_metadata_service_Raiser()
+            return _fbthrift__module__thrift_metadata.gen_metadata_service_Raiser()
     
         async def doBland(
             self,
@@ -100,7 +102,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
             self,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> str:
+        ) -> builtins.str:
             _fbthrift_resp = await self._send_request(
                 "Raiser",
                 "get200",
@@ -122,7 +124,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
             self,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> str:
+        ) -> builtins.str:
             _fbthrift_resp = await self._send_request(
                 "Raiser",
                 "get500",
@@ -170,7 +172,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return module.thrift_metadata.gen_metadata_service_Raiser()
+            return _fbthrift__module__thrift_metadata.gen_metadata_service_Raiser()
     
         def doBland(
             self,
@@ -213,7 +215,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
             self,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> str:
+        ) -> builtins.str:
             _fbthrift_resp = self._send_request(
                 "Raiser",
                 "get200",
@@ -234,7 +236,7 @@ class Raiser(_fbthrift_python_Client["Raiser.Async", "Raiser.Sync"]):
             self,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> str:
+        ) -> builtins.str:
             _fbthrift_resp = self._send_request(
                 "Raiser",
                 "get500",

@@ -35,6 +35,7 @@
 #include <folly/coro/WithCancellation.h>
 #include <folly/coro/detail/Malloc.h>
 #include <folly/coro/detail/ManualLifetime.h>
+#include <folly/lang/SafeAlias-fwd.h>
 #include <folly/tracing/AsyncStack.h>
 
 #include <glog/logging.h>
@@ -218,6 +219,12 @@ class FOLLY_NODISCARD AsyncGenerator {
  public:
   using promise_type =
       detail::AsyncGeneratorPromise<Reference, Value, RequiresCleanup>;
+  // Standard `AsyncGenerator` coros can easily capture references & other
+  // unsafe aliasing.
+  //
+  // Future: Implement a `coro/safe` generator wrapper, like
+  // `async_closure_gen`.
+  using folly_private_safe_alias_t = safe_alias_constant<safe_alias::unsafe>;
 
  private:
   using handle_t = coroutine_handle<promise_type>;
@@ -289,6 +296,8 @@ class FOLLY_NODISCARD AsyncGenerator {
     CleanupAwaitable viaIfAsync(Executor::KeepAlive<> executor) noexcept {
       return CleanupAwaitable{scopeExit_, std::move(executor)};
     }
+
+    using folly_private_safe_alias_t = safe_alias_constant<safe_alias::unsafe>;
 
    private:
     friend AsyncGenerator;
@@ -486,6 +495,8 @@ class FOLLY_NODISCARD AsyncGenerator {
       }
       return NextSemiAwaitable{std::exchange(awaitable.coro_, {})};
     }
+
+    using folly_private_safe_alias_t = safe_alias_constant<safe_alias::unsafe>;
 
    private:
     friend AsyncGenerator;
@@ -868,6 +879,7 @@ auto tag_invoke(
 }
 
 } // namespace coro
+
 } // namespace folly
 
 #endif

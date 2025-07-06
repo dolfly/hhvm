@@ -141,6 +141,7 @@ void parse_options(int argc, char** argv) {
   po::options_description eflags("Extern-Worker Flags");
   eflags.add_options()
     ("extern-worker-use-case",                 po::value(&options.ExternWorkerUseCase))
+    ("extern-worker-platform",                 po::value(&options.ExternWorkerPlatform))
     ("extern-worker-working-dir",              po::value(&options.ExternWorkerWorkingDir))
     ("extern-worker-timeout-secs",             po::value(&options.ExternWorkerTimeoutSecs))
     ("extern-worker-throttle-retries",         po::value(&options.ExternWorkerThrottleRetries))
@@ -396,7 +397,7 @@ std::pair<WholeProgramInput, Config> load_repo(TicketExecutor& executor,
   for (size_t i = 0; i < groups.size(); ++i) {
     auto& group = groups[i];
     if (group.empty()) continue;
-    tasks.emplace_back(load(i, std::move(group)).scheduleOn(executor.sticky()));
+    tasks.emplace_back(co_withExecutor(executor.sticky(), load(i, std::move(group))));
   }
   coro::blockingWait(coro::collectAllRange(std::move(tasks)));
   return std::make_pair(std::move(inputs), std::move(config));
@@ -421,6 +422,9 @@ extern_worker::Options make_extern_worker_options() {
     .setFeaturesFile(options.ExternWorkerFeaturesFile);
   if (options.ExternWorkerTimeoutSecs > 0) {
     opts.setTimeout(std::chrono::seconds{options.ExternWorkerTimeoutSecs});
+  }
+  if (!options.ExternWorkerPlatform.empty()) {
+    opts.setPlatform(options.ExternWorkerPlatform);
   }
   if (!options.ExternWorkerWorkingDir.empty()) {
     opts.setWorkingDir(options.ExternWorkerWorkingDir);
@@ -461,6 +465,7 @@ void compile_repo() {
   StructuredLogEntry sample;
   sample.setStr("debug", debug ? "true" : "false");
   sample.setStr("use_case", options.ExternWorkerUseCase);
+  sample.setStr("platform", options.ExternWorkerPlatform);
   sample.setInt("use_rich_client", options.ExternWorkerUseRichClient);
   sample.setInt("use_zippy_rich_client", options.ExternWorkerUseZippyRichClient);
   sample.setInt("use_p2p", options.ExternWorkerUseP2P);

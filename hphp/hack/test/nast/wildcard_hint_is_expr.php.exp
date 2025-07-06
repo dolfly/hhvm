@@ -17,8 +17,7 @@
        c_is_xhp = false; c_has_xhp_keyword = false; c_kind = (Cclass Concrete); 
        c_name = ([4:13-18], "\\BBBBB");
        c_tparams =
-       [{ tp_variance = Covariant; tp_name = ([4:20-21], "T"); tp_parameters = []; 
-          tp_constraints = [(Constraint_as, ([4:20-21], (Happly (([4:20-21], "\\HH\\supportdyn"), [([4:20-21], Hmixed)]))))]; 
+       [{ tp_variance = Covariant; tp_name = ([4:20-21], "T"); tp_constraints = [(Constraint_as, ([4:20-21], (Happly (([4:20-21], "\\HH\\supportdyn"), [([4:20-21], Hmixed)]))))]; 
           tp_reified = Erased; tp_user_attributes = [] }
          ];
        c_extends = [([4:31-36], (Happly (([4:31-36], "\\AAAAA"), [])))]; 
@@ -26,7 +25,7 @@
        c_implements = []; c_consts = []; c_typeconsts = [];
        c_vars =
        [{ cv_final = false; cv_xhp_attr = None; cv_abstract = false; 
-          cv_readonly = false; cv_visibility = Private; cv_type = ((), (Some ([5:11-13], (Hoption ([5:12-13], (Habstr ("T", []))))))); 
+          cv_readonly = false; cv_visibility = Private; cv_type = ((), (Some ([5:11-13], (Hoption ([5:12-13], (Habstr "T")))))); 
           cv_id = ([5:14-16], "x"); cv_expr = None; cv_user_attributes = []; 
           cv_doc_comment = None; cv_is_static = false; cv_span = [5:14-16] }
          ];

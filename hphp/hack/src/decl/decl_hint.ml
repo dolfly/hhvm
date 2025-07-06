@@ -27,7 +27,7 @@ and context_hint env (p, h) =
   match h with
   | Hfun_context n ->
     make_decl_ty env p (Tgeneric (Format.sprintf "T/[ctx %s]" n))
-  | Haccess ((_, (Habstr (n, []) | Hvar n)), ids) ->
+  | Haccess ((_, (Habstr n | Hvar n)), ids) ->
     let name =
       Format.sprintf
         "T/[%s::%s]"
@@ -86,8 +86,6 @@ and aast_tparam_to_decl_tparam env t =
   {
     tp_variance = t.Aast.tp_variance;
     tp_name = Decl_env.make_decl_posed env t.Aast.tp_name;
-    tp_tparams =
-      List.map ~f:(aast_tparam_to_decl_tparam env) t.Aast.tp_parameters;
     tp_constraints =
       List.map ~f:(Tuple.T2.map_snd ~f:(hint env)) t.Aast.tp_constraints;
     tp_reified = t.Aast.tp_reified;
@@ -115,7 +113,7 @@ and hint_ p env = function
     in
     Tvec_or_dict (t1, hint env h2)
   | Hprim p -> Tprim p
-  | Habstr (x, _tyl) -> Tgeneric x
+  | Habstr x -> Tgeneric x
   | Hclass_ptr (k, h) ->
     let h =
       match k with
@@ -242,7 +240,6 @@ and hint_ p env = function
             {
               tp_variance = Ast_defs.Invariant (* Meaningless here *);
               tp_name;
-              tp_tparams = [];
               tp_constraints;
               tp_reified = Erased;
               tp_user_attributes;

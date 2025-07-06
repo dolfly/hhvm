@@ -6,6 +6,8 @@
 #
 
 from __future__ import annotations
+import builtins
+
 
 import typing as _typing
 import types as _py_types
@@ -25,7 +27,7 @@ import thrift.python.mutable_types as _fbthrift_python_mutable_types
 import thrift.python.exceptions as _fbthrift_python_exceptions
 import thrift.python.types as _fbthrift_python_types
 import python_module_root.my.namespacing.extend.test.extend.thrift_mutable_types as python_module_root__my__namespacing__extend__test__extend__thrift_mutable_types
-import python_module_root.my.namespacing.extend.test.extend.thrift_metadata
+import python_module_root.my.namespacing.extend.test.extend.thrift_metadata as python_module_root__my__namespacing__extend__test__extend__thrift_metadata
 import python_module_root.my.namespacing.test.hsmodule.thrift_mutable_types as python_module_root__my__namespacing__test__hsmodule__thrift_mutable_types
 import python_module_root.my.namespacing.test.hsmodule.thrift_mutable_clients
 
@@ -47,7 +49,7 @@ class ExtendTestService(_fbthrift_python_Client["ExtendTestService.Async", "Exte
     
     @staticmethod
     def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-        return python_module_root.my.namespacing.extend.test.extend.thrift_metadata.gen_metadata_service_ExtendTestService()
+        return python_module_root__my__namespacing__extend__test__extend__thrift_metadata.gen_metadata_service_ExtendTestService()
     
     class Async(python_module_root.my.namespacing.test.hsmodule.thrift_mutable_clients.HsTestService.Async):
         @staticmethod
@@ -60,14 +62,14 @@ class ExtendTestService(_fbthrift_python_Client["ExtendTestService.Async", "Exte
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return python_module_root.my.namespacing.extend.test.extend.thrift_metadata.gen_metadata_service_ExtendTestService()
+            return python_module_root__my__namespacing__extend__test__extend__thrift_metadata.gen_metadata_service_ExtendTestService()
     
         async def check(
             self,
             struct1: python_module_root__my__namespacing__test__hsmodule__thrift_mutable_types.HsFoo,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> bool:
+        ) -> builtins.bool:
             _fbthrift_resp = await self._send_request(
                 "ExtendTestService",
                 "check",
@@ -102,14 +104,14 @@ class ExtendTestService(_fbthrift_python_Client["ExtendTestService.Async", "Exte
     
         @staticmethod
         def __get_metadata__() -> _fbthrift_metadata.ThriftMetadata:
-            return python_module_root.my.namespacing.extend.test.extend.thrift_metadata.gen_metadata_service_ExtendTestService()
+            return python_module_root__my__namespacing__extend__test__extend__thrift_metadata.gen_metadata_service_ExtendTestService()
     
         def check(
             self,
             struct1: python_module_root__my__namespacing__test__hsmodule__thrift_mutable_types.HsFoo,
             *,
             rpc_options: _typing.Optional[RpcOptions] = None,
-        ) -> bool:
+        ) -> builtins.bool:
             _fbthrift_resp = self._send_request(
                 "ExtendTestService",
                 "check",

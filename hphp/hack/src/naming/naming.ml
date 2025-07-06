@@ -62,7 +62,6 @@ let mk_env filename tcopt =
     TypecheckerOptions.experimental_feature_enabled
       tcopt
       TypecheckerOptions.experimental_supportdynamic_type_hint
-  and hkt_enabled = TypecheckerOptions.higher_kinded_types tcopt
   and soft_as_like = TypecheckerOptions.interpret_soft_types_as_like_types tcopt
   and consistent_ctor_level =
     TypecheckerOptions.explicit_consistent_constructors tcopt
@@ -76,7 +75,6 @@ let mk_env filename tcopt =
       allow_module_def;
       everything_sdt;
       supportdynamic_type_hint_enabled;
-      hkt_enabled;
       soft_as_like;
       allow_ignore_readonly;
     }
@@ -100,8 +98,6 @@ let passes =
         representation: `CIparent`, `CIself`, `CIstatic`, `CI` _or_
        `CIexpr (_,_, Lvar _ | This )` *)
     Naming_elab_class_id.pass on_error;
-    (* Strip type parameters from type parameters when HKTs are not enabled *)
-    Naming_elab_hkt.pass on_error;
     (* Elaborate `Collection` to `ValCollection` or `KeyValCollection` *)
     Naming_elab_collection.pass on_error;
     (* Check that user attributes are well-formed *)

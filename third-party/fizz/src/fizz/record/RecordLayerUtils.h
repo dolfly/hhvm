@@ -32,14 +32,23 @@ class RecordLayerUtils {
    * Write an encrypted record with the given parameters.
    * This function handles encrypting the data and assembling the final TLS
    * record.
+   *
+   * @param plaintext The plaintext data to encrypt
+   * @param aead The AEAD implementation to use for encryption
+   * @param header The wire-format record header. Must not be null.
+   * @param aad Optional. Used for AEAD integrity protection but not written to
+   * wire.
+   * @param seqNum The sequence number for the AEAD
+   * @param options Additional options for the AEAD
+   * @return The final encrypted record
    */
   static std::unique_ptr<folly::IOBuf> writeEncryptedRecord(
       std::unique_ptr<folly::IOBuf> plaintext,
       Aead* aead,
-      folly::IOBuf* header,
+      const folly::IOBuf* header,
+      const folly::IOBuf* aad,
       uint64_t seqNum,
-      bool useAdditionalData,
-      Aead::AeadOptions options);
+      Aead::AeadOptions options = {});
 
   /**
    * Structure to hold parsed encrypted record data before decryption.
@@ -55,17 +64,15 @@ class RecordLayerUtils {
   };
 
   /**
-   * Parse an encrypted TLS record from the given buffer.
-   * This function handles all the parsing logic up to but excluding the
-   * decryption step.
+   * PRECONDITIONS:
+   * - Buffer must contain at least kEncryptedHeaderSize bytes
+   * - Buffer must contain the complete record (header + payload)
+   * Caller is responsible for validating these conditions.
    *
-   * @param buf The input buffer containing the encrypted record
-   * @return An Optional containing the parsed record, or folly::none if
-   *         more data is needed
-   * @throws std::runtime_error if the record is invalid
+   * @return The parsed record data
+   * @throws std::runtime_error if the record contains invalid protocol data
    */
-  static folly::Optional<ParsedEncryptedRecord> parseEncryptedRecord(
-      folly::IOBufQueue& buf);
+  static ParsedEncryptedRecord parseEncryptedRecord(folly::IOBufQueue& buf);
 };
 
 /**

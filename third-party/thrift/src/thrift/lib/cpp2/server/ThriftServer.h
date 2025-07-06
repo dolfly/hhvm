@@ -113,8 +113,7 @@ THRIFT_FLAG_DECLARE_bool(enforce_queue_concurrency_resource_pools);
 THRIFT_FLAG_DECLARE_bool(
     init_decorated_processor_factory_only_resource_pools_checks);
 THRIFT_FLAG_DECLARE_bool(default_sync_max_requests_to_concurrency_limit);
-
-THRIFT_FLAG_DECLARE_bool(do_not_clobber_S532283);
+THRIFT_FLAG_DECLARE_bool(default_sync_max_qps_to_execution_rate);
 
 namespace wangle {
 class ConnectionManager;
@@ -150,6 +149,7 @@ class ThriftTlsConfig : public wangle::CustomConfig {
  public:
   bool enableThriftParamsNegotiation{true};
   bool enableStopTLS{false};
+  bool enableStopTLSV2{false};
 };
 
 class TLSCredentialWatcher {
@@ -1895,25 +1895,9 @@ class ThriftServer : public apache::thrift::concurrency::Runnable,
   // from resource pools, when setConcurrencyLimit is explicitly called.
   folly::once_flag cancelSetMaxRequestsCallbackHandleFlag_;
 
-  // If the service might rely on the synced maxRequests, then we need to log.
-  // Logging only needs to happen once.
-  folly::once_flag serviceMightRelyOnSyncedMaxRequestsFlag_;
-
-  // If the service relies on the synced maxRequests, then we need to log.
-  // Logging only needs to happen once.
-  folly::once_flag serviceReliesOnSyncedMaxRequestsFlag_;
-
   // setMaxQpsCallbackHandle should be cancelled, unsyncing maxQps from resource
   // pools, when setExecutionRate is explicitly called.
   folly::once_flag cancelSetMaxQpsCallbackHandleFlag_;
-
-  // If the service might rely on the synced maxQps, then we need to log.
-  // Logging only needs to happen once.
-  folly::once_flag serviceMightRelyOnSyncedMaxQpsFlag_;
-
-  // If the service relies on the synced maxQps, then we need to log. Logging
-  // only needs to happen once.
-  folly::once_flag serviceReliesOnSyncedMaxQpsFlag_;
 
   struct IdleServerAction : public folly::HHWheelTimer::Callback {
     IdleServerAction(
@@ -2666,6 +2650,8 @@ class ThriftServer : public apache::thrift::concurrency::Runnable,
   }
 
   static folly::observer::Observer<bool> enableStopTLS();
+
+  static folly::observer::Observer<bool> enableStopTLSV2();
 
   static folly::observer::Observer<bool> enableReceivingDelegatedCreds();
 

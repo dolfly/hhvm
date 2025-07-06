@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import typing as _typing
+import builtins
+
 
 import folly.iobuf as _fbthrift_iobuf
 import python_module_root.my.namespacing.extend.test.extend.thrift_abstract_types as _fbthrift_python_abstract_types
@@ -23,7 +25,7 @@ class _fbthrift_ExtendTestService_check_args(_fbthrift_python_types.Struct):
 
     def __init__(
         self, *,
-        struct1: _typing.Optional[python_module_root__my__namespacing__test__hsmodule__thrift_types.HsFoo]=...
+        struct1: _typing.Optional[python_module_root__my__namespacing__test__hsmodule__thrift_types._fbthrift_HsFoo]=...
     ) -> None: ...
 
     def __iter__(self) -> _typing.Iterator[_typing.Tuple[
@@ -32,14 +34,14 @@ class _fbthrift_ExtendTestService_check_args(_fbthrift_python_types.Struct):
 
 
 class _fbthrift_ExtendTestService_check_result(_fbthrift_python_types.Struct):
-    success: _typing.Final[bool]
+    success: _typing.Final[builtins.bool]
 
     def __init__(
-        self, *, success: _typing.Optional[bool] = ...
+        self, *, success: _typing.Optional[builtins.bool] = ...
     ) -> None: ...
 
     def __iter__(self) -> _typing.Iterator[_typing.Tuple[
         str,
         _typing.Union[
-            bool,
+            builtins.bool,
         ]]]: ...

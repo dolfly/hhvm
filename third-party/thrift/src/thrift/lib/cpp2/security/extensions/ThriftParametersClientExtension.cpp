@@ -27,8 +27,9 @@ ThriftParametersClientExtension::getClientHelloExtensions() const {
     assert(comp != CompressionAlgorithm::NONE);
     compressionAlgorithms |= 1ull << (int(comp) - 1);
   }
-  params.compressionAlgos_ref() = compressionAlgorithms;
-  params.useStopTLS_ref() = context_->getUseStopTLS();
+  params.compressionAlgos() = compressionAlgorithms;
+  params.useStopTLS() = context_->getUseStopTLS();
+  params.useStopTLSV2() = context_->getUseStopTLSV2(); // Added for StopTLS V2
   ThriftParametersExt paramsExt;
   paramsExt.params = params;
   clientExtensions.push_back(encodeThriftExtension(paramsExt));
@@ -44,7 +45,7 @@ void ThriftParametersClientExtension::onEncryptedExtensions(
     VLOG(6) << "Server did not negotiate thrift parameters";
     return;
   }
-  if (auto serverCompressions = serverParams->params.compressionAlgos_ref()) {
+  if (auto serverCompressions = serverParams->params.compressionAlgos()) {
     for (const auto& comp : context_->getSupportedCompressionAlgorithms()) {
       assert(comp != CompressionAlgorithm::NONE);
       if (*serverCompressions & 1ull << (int(comp) - 1)) {
@@ -55,8 +56,12 @@ void ThriftParametersClientExtension::onEncryptedExtensions(
   } else {
     VLOG(6) << "Server did not negotiate thrift compression algorithms";
   }
+
   negotiatedStopTLS_ = context_->getUseStopTLS() &&
-      serverParams->params.useStopTLS_ref().value_or(false);
+      serverParams->params.useStopTLS().value_or(false);
+
+  negotiatedStopTLSV2_ = context_->getUseStopTLSV2() &&
+      serverParams->params.useStopTLSV2().value_or(false);
 }
 
 } // namespace apache::thrift

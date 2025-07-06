@@ -157,7 +157,7 @@ template <typename, auto>
 class NoexceptAwaitable;
 
 template <auto CancelCfg>
-struct WithCancelCfg {
+struct NoexceptAwaitableWithCancelCfg {
   template <typename T>
   using apply = NoexceptAwaitable<T, CancelCfg>;
 };
@@ -165,11 +165,11 @@ struct WithCancelCfg {
 template <typename T, auto CancelCfg>
 class [[FOLLY_ATTR_CLANG_CORO_AWAIT_ELIDABLE]] NoexceptAwaitable
     : public CommutativeWrapperAwaitable<
-          WithCancelCfg<CancelCfg>::template apply,
+          NoexceptAwaitableWithCancelCfg<CancelCfg>::template apply,
           T> {
  public:
   using CommutativeWrapperAwaitable<
-      WithCancelCfg<CancelCfg>::template apply,
+      NoexceptAwaitableWithCancelCfg<CancelCfg>::template apply,
       T>::CommutativeWrapperAwaitable;
 
   template <typename T2 = T, std::enable_if_t<is_awaitable_v<T2>, int> = 0>

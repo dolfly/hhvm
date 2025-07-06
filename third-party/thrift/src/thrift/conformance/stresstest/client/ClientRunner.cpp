@@ -75,10 +75,10 @@ class ClientThread : public folly::HHWheelTimer::Callback {
         continuous_(cfg.continuous),
         numRunsPerClient_(cfg.numRunsPerClient),
         useLoadGenerator_(useLoadGenerator),
-        testDoneTimeout_(testDone_),
-        warmupDoneTimeout_(rpcStats_),
         loadGenerator_(loadGenerator) {
     auto ebm = folly::EventBaseManager::get();
+    warmupDoneTimeout_ = std::make_unique<WarmupDoneTimeout>(rpcStats_);
+    testDoneTimeout_ = std::make_unique<TestDoneTimeout>(testDone_);
     auto factoryFunction = cfg.connConfig.ioUring
         ? folly::EventBaseBackendBase::FactoryFunc(getIOUringBackend)
         : folly::EventBaseBackendBase::FactoryFunc(getDefaultBackend);
@@ -103,13 +103,15 @@ class ClientThread : public folly::HHWheelTimer::Callback {
   ~ClientThread() {
     // destroy clients in event base thread
     thread_->getEventBase()->runInEventBaseThreadAndWait(
-        [clients = std::move(clients_)]() {});
+        [clients = std::move(clients_),
+         warmupDoneTimeout = std::move(warmupDoneTimeout_),
+         testDoneTimeout = std::move(testDoneTimeout_)]() {});
   }
 
   void checkIsContinuous() {
     if (!continuous_ && numRunsPerClient_ == 0) {
       thread_->getEventBase()->timer().scheduleTimeout(
-          &testDoneTimeout_,
+          testDoneTimeout_.get(),
           std::chrono::seconds(FLAGS_warmup_s + FLAGS_runtime_s));
     }
   }
@@ -117,7 +119,7 @@ class ClientThread : public folly::HHWheelTimer::Callback {
   void warmup() {
     if (FLAGS_warmup_s >= 0) {
       thread_->getEventBase()->timer().scheduleTimeout(
-          &warmupDoneTimeout_, std::chrono::seconds(FLAGS_warmup_s));
+          warmupDoneTimeout_.get(), std::chrono::seconds(FLAGS_warmup_s));
     }
   }
 
@@ -217,19 +219,21 @@ class ClientThread : public folly::HHWheelTimer::Callback {
   uint64_t numRunsPerClient_{0};
   bool useLoadGenerator_{false};
   bool testDone_{false};
-  TestDoneTimeout testDoneTimeout_;
-  WarmupDoneTimeout warmupDoneTimeout_;
+  std::unique_ptr<TestDoneTimeout> testDoneTimeout_;
+  std::unique_ptr<WarmupDoneTimeout> warmupDoneTimeout_;
   BaseLoadGenerator& loadGenerator_;
 };
 
 ClientRunner::ClientRunner(const ClientConfig& config)
     : continuous_(config.continuous),
       useLoadGenerator_(config.useLoadGenerator),
-      loadGenerator_(config.targetQps, config.gen_load_interval),
       clientThreads_() {
+  auto targetQpsPerClient = config.targetQps / config.numClientThreads;
   for (size_t i = 0; i < config.numClientThreads; i++) {
+    loadGenerator_.emplace_back(std::make_unique<PoissonLoadGenerator>(
+        targetQpsPerClient, config.gen_load_interval));
     clientThreads_.emplace_back(std::make_unique<ClientThread>(
-        config, i, loadGenerator_, config.useLoadGenerator));
+        config, i, *loadGenerator_[i], config.useLoadGenerator));
   }
 }
 
@@ -246,7 +250,9 @@ void ClientRunner::run(const StressTestBase* test) {
   }
 
   if (useLoadGenerator_) {
-    loadGenerator_.start();
+    for (const auto& generator : loadGenerator_) {
+      generator->start();
+    }
   }
 
   folly::collect(std::move(starts)).get();

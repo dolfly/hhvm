@@ -75,7 +75,7 @@ bool is_annotation_blacklisted_in_fatal(const std::string& key) {
 }
 
 bool is_complex_return(const t_type* type) {
-  return type->is_container() || type->is_string_or_binary() ||
+  return type->is<t_container>() || type->is_string_or_binary() ||
       type->is_struct_or_union() || type->is_exception();
 }
 
@@ -198,7 +198,7 @@ bool should_mangle_field_storage_name_in_struct(const t_structured& s) {
 }
 
 bool resolves_to_container_or_struct(const t_type* type) {
-  return type->is_container() || type->is_struct_or_union() ||
+  return type->is<t_container>() || type->is_struct_or_union() ||
       type->is_exception();
 }
 
@@ -435,6 +435,16 @@ class t_mstch_cpp2_generator : public t_mstch_generator {
       const prototype_database& proto) const override {
     auto base = t_whisker_generator::make_prototype_for_function(proto);
     auto def = whisker::dsl::prototype_builder<h_function>::extends(base);
+
+    def.property("cpp_return_type", [&](const t_function& f) -> std::string {
+      return cpp_context_->resolver().get_return_type(f);
+    });
+
+    // Specifies if the generated recv_* functions have an additional argument
+    // representing the return value.
+    def.property("cpp_recv_arg?", [&](const t_function& f) {
+      return !f.return_type()->is_void() || f.sink_or_stream();
+    });
 
     return std::move(def).make();
   }
@@ -699,6 +709,7 @@ class cpp_mstch_program : public mstch_program {
         *program_, [&] { return gen_transitive_include_map(program_); });
     mstch::array initializers = {
         fmt::format("{}()", schematizer::name_schema(sm_, *program_))};
+    initializers.reserve(includes.size() + 1);
     for (const auto& [_, include] : includes) {
       initializers.push_back(include);
     }
@@ -1088,8 +1099,6 @@ class cpp_mstch_function : public mstch_function {
         this,
         {
             {"function:eb", &cpp_mstch_function::event_based},
-            {"function:cpp_return_type", &cpp_mstch_function::cpp_return_type},
-            {"function:cpp_void?", &cpp_mstch_function::is_cpp_void},
             {"function:stack_arguments?", &cpp_mstch_function::stack_arguments},
             {"function:created_interaction",
              &cpp_mstch_function::created_interaction},
@@ -1105,13 +1114,6 @@ class cpp_mstch_function : public mstch_function {
         function_->has_structured_annotation(kCppProcessInEbThreadUri) ||
         interface_->has_unstructured_annotation("process_in_event_base") ||
         interface_->has_structured_annotation(kCppProcessInEbThreadUri);
-  }
-  mstch::node cpp_return_type() {
-    return cpp_context_->resolver().get_return_type(*function_);
-  }
-  // Specifies if the generated C++ function is void.
-  mstch::node is_cpp_void() {
-    return function_->return_type()->is_void() && !function_->sink_or_stream();
   }
   mstch::node stack_arguments() {
     return cpp2::is_stack_arguments(context_.options, *function_);
@@ -1245,13 +1247,15 @@ class cpp_mstch_type : public mstch_type {
   mstch::node resolves_to_base_or_enum() {
     return resolved_type_->is_primitive_type() || resolved_type_->is_enum();
   }
-  mstch::node resolves_to_container() { return resolved_type_->is_container(); }
+  mstch::node resolves_to_container() {
+    return resolved_type_->is<t_container>();
+  }
   mstch::node resolves_to_container_or_struct() {
     return ::apache::thrift::compiler::resolves_to_container_or_struct(
         resolved_type_);
   }
   mstch::node resolves_to_container_or_enum() {
-    return resolved_type_->is_container() || resolved_type_->is_enum();
+    return resolved_type_->is<t_container>() || resolved_type_->is_enum();
   }
   mstch::node resolves_to_complex_return() {
     return is_complex_return(resolved_type_);
@@ -1267,7 +1271,7 @@ class cpp_mstch_type : public mstch_type {
     if (resolved_type_->is_struct_or_union()) {
       return true;
     }
-    if (!resolved_type_->is_container()) {
+    if (!resolved_type_->is<t_container>()) {
       return false;
     }
     // type is a container: traverse (breadthwise, but could be depthwise)
@@ -1279,14 +1283,14 @@ class cpp_mstch_type : public mstch_type {
       if (next->is_struct_or_union()) {
         return true;
       }
-      if (!next->is_container()) {
+      if (!next->is<t_container>()) {
         continue;
       }
-      if (next->is_list()) {
+      if (next->is<t_list>()) {
         queue.push(static_cast<const t_list*>(next)->get_elem_type());
-      } else if (next->is_set()) {
+      } else if (next->is<t_set>()) {
         queue.push(static_cast<const t_set*>(next)->get_elem_type());
-      } else if (next->is_map()) {
+      } else if (next->is<t_map>()) {
         queue.push(static_cast<const t_map*>(next)->get_key_type());
         queue.push(static_cast<const t_map*>(next)->get_val_type());
       } else {
@@ -1450,14 +1454,14 @@ class cpp_mstch_struct : public mstch_struct {
       if (type->is_enum() ||
           (type->is_primitive_type() && !type->is_string_or_binary()) ||
           (type->is_string_or_binary() && field->get_value() != nullptr) ||
-          (type->is_container() && field->get_value() != nullptr &&
+          (type->is<t_container>() && field->get_value() != nullptr &&
            !field->get_value()->is_empty()) ||
           (type->is_struct_or_union() &&
            (struct_ != type->try_as<t_struct>()) &&
            ((field->get_value() && !field->get_value()->is_empty()) ||
             (cpp2::is_explicit_ref(field) &&
              field->get_req() != t_field::e_req::optional))) ||
-          (type->is_container() && cpp2::is_explicit_ref(field) &&
+          (type->is<t_container>() && cpp2::is_explicit_ref(field) &&
            field->get_req() != t_field::e_req::optional) ||
           (type->is_primitive_type() && cpp2::is_explicit_ref(field) &&
            field->get_req() != t_field::e_req::optional)) {
@@ -1683,7 +1687,7 @@ class cpp_mstch_struct : public mstch_struct {
     for (const auto& field : struct_->fields()) {
       const auto* resolved_typedef = field.type()->get_true_type();
       if (cpp2::is_ref(&field) || resolved_typedef->is_string_or_binary() ||
-          resolved_typedef->is_container()) {
+          resolved_typedef->is<t_container>()) {
         return true;
       }
     }

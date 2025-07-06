@@ -196,8 +196,18 @@ let canonicalize_happly tparams hint_pos tycon hints =
     Ok ((hint_pos, hint_), err_opt)
   (* The type constructors corresponds to an in-scope type parameter *)
   | Typaram name ->
-    let hint_ = Aast.Habstr (name, hints) in
-    Ok ((hint_pos, hint_), None)
+    let err =
+      if List.is_empty hints then
+        None
+      else
+        Some
+          (Err.naming
+          @@ Naming_error.Tparam_applied_to_type
+               { pos = hint_pos; tparam_name = name })
+    in
+
+    let hint_ = Aast.Habstr name in
+    Ok ((hint_pos, hint_), err)
   (* The type constructors canonical representation is `Happly` but
      additional elaboration / validation is required *)
   | This pos ->
@@ -245,11 +255,6 @@ let on_class_ c ~ctx = (Env.in_class ctx c, Ok c)
 let on_method_ m ~ctx =
   let ctx = Env.extend_tparams ctx m.Aast.m_tparams in
   (ctx, Ok m)
-
-let on_tparam tp ~ctx =
-  (* TODO[mjt] do we want to maintain the HKT code? *)
-  let ctx = Env.extend_tparams ctx tp.Aast.tp_parameters in
-  (ctx, Ok tp)
 
 let on_hint on_error hint ~ctx =
   match hint with
@@ -316,7 +321,6 @@ let pass on_error =
         on_ty_module_def = Some on_module_def;
         on_ty_class_ = Some on_class_;
         on_ty_method_ = Some on_method_;
-        on_ty_tparam = Some on_tparam;
         on_ty_hint = Some (on_hint on_error);
         on_ty_hint_fun = Some (on_hint_fun on_error);
         on_ty_expr_ = Some on_ty_expr_;

@@ -37,7 +37,7 @@ bool is_patch_program(const t_program* prog) {
               : false;
 }
 
-static void get_needed_includes_impl(
+static void get_needed_includes_by_patch_impl(
     const t_program* root,
     const t_type& type,
     std::unordered_set<const t_type*>& seen,
@@ -45,39 +45,51 @@ static void get_needed_includes_impl(
   if (!seen.insert(&type).second) {
     return;
   }
+  if (const t_typedef* asTypedef = type.try_as<t_typedef>()) {
+    // We don't generate patch struct for typedef. We need to skip the chain.
+    get_needed_includes_by_patch_impl(
+        root, *asTypedef->get_type(), seen, result);
+    return;
+  }
+  if (type.is_primitive_type()) {
+    // We don't need to import module to get the primitive tyeps.
+    return;
+  }
   if (type.get_program() && type.get_program() != root) {
     // If type is not in root, root needs type's program in runtime.
     result.insert(type.get_program());
     return;
   }
-  if (const t_typedef* asTypedef = type.try_as<t_typedef>()) {
-    get_needed_includes_impl(root, *asTypedef->get_type(), seen, result);
-  }
   if (const t_list* asList = type.try_as<t_list>()) {
-    get_needed_includes_impl(root, *asList->get_elem_type(), seen, result);
+    get_needed_includes_by_patch_impl(
+        root, *asList->get_elem_type(), seen, result);
   }
   if (const t_set* asSet = type.try_as<t_set>()) {
-    get_needed_includes_impl(root, *asSet->get_elem_type(), seen, result);
+    get_needed_includes_by_patch_impl(
+        root, *asSet->get_elem_type(), seen, result);
   }
   if (const t_map* asMap = type.try_as<t_map>()) {
-    get_needed_includes_impl(root, *asMap->get_key_type(), seen, result);
-    get_needed_includes_impl(root, *asMap->get_val_type(), seen, result);
+    get_needed_includes_by_patch_impl(
+        root, *asMap->get_key_type(), seen, result);
+    get_needed_includes_by_patch_impl(
+        root, *asMap->get_val_type(), seen, result);
   }
   if (const t_structured* asStructured = type.try_as<t_structured>()) {
     for (auto& field : asStructured->fields()) {
-      get_needed_includes_impl(root, *field.type().get_type(), seen, result);
+      get_needed_includes_by_patch_impl(
+          root, *field.type().get_type(), seen, result);
     }
   }
 }
 
-std::unordered_set<const t_program*> needed_includes_in_runtime(
+std::unordered_set<const t_program*> needed_includes_by_patch(
     const t_program* root) {
   std::unordered_set<const t_program*> programs;
   std::unordered_set<const t_type*> seen;
   const_ast_visitor visitor;
   visitor.add_root_definition_visitor([&](const t_named& def) {
     if (auto type = dynamic_cast<const t_type*>(&def)) {
-      get_needed_includes_impl(root, *type, seen, programs);
+      get_needed_includes_by_patch_impl(root, *type, seen, programs);
     }
   });
   visitor(*root);
@@ -191,10 +203,10 @@ std::string cached_properties::to_cython_type() const {
 
 bool cached_properties::is_default_template(
     const apache::thrift::compiler::t_type* type) const {
-  return (!type->is_container() && cpp_template_ == "") ||
-      (type->is_list() && cpp_template_ == "std::vector") ||
-      (type->is_set() && cpp_template_ == "std::set") ||
-      (type->is_map() && cpp_template_ == "std::map");
+  return (!type->is<t_container>() && cpp_template_ == "") ||
+      (type->is<t_list>() && cpp_template_ == "std::vector") ||
+      (type->is<t_set>() && cpp_template_ == "std::set") ||
+      (type->is<t_map>() && cpp_template_ == "std::map");
 }
 
 void cached_properties::set_flat_name(
