@@ -192,9 +192,8 @@ class json_experimental_function : public mstch_function {
       const t_function* f,
       mstch_context& ctx,
       mstch_element_position pos,
-      const t_interface* iface,
       source_manager* sm)
-      : mstch_function(f, ctx, pos, iface), source_mgr_(*sm) {
+      : mstch_function(f, ctx, pos), source_mgr_(*sm) {
     register_methods(
         this,
         {
@@ -270,9 +269,8 @@ class json_experimental_field : public mstch_field {
       const t_field* f,
       mstch_context& ctx,
       mstch_element_position pos,
-      const field_generator_context* field_context,
       source_manager* sm)
-      : mstch_field(f, ctx, pos, field_context), source_mgr_(*sm) {
+      : mstch_field(f, ctx, pos), source_mgr_(*sm) {
     register_methods(
         this,
         {

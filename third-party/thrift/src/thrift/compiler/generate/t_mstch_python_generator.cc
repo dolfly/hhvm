@@ -24,8 +24,6 @@
 #include <fmt/format.h>
 
 #include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/replace.hpp>
 
 #include <thrift/compiler/ast/t_field.h>
 #include <thrift/compiler/ast/t_service.h>
@@ -162,7 +160,7 @@ mstch::node adapter_node(
     return false;
   }
   auto type_hint = get_annotation_property(adapter_annotation, "typeHint");
-  bool is_generic = boost::algorithm::ends_with(type_hint, "[]");
+  bool is_generic = type_hint.ends_with("[]");
   if (is_generic) {
     type_hint = type_hint.substr(0, type_hint.size() - 2);
   }
@@ -192,7 +190,7 @@ bool is_invariant_adapter(
   }
 
   auto type_hint = get_annotation_property(adapter_annotation, "typeHint");
-  return boost::algorithm::ends_with(type_hint, "[]");
+  return type_hint.ends_with("[]");
 }
 
 bool is_invariant_container_type(const t_type* type) {
@@ -532,16 +530,14 @@ class python_mstch_service : public mstch_service {
     return make_mstch_functions(
         get_supported_functions([](const t_function* func) -> bool {
           return !func->is_interaction_constructor();
-        }),
-        service_);
+        }));
   }
 
   mstch::node supported_service_functions() {
     return make_mstch_functions(
         get_supported_functions([](const t_function* func) -> bool {
           return !func->is_interaction_constructor();
-        }),
-        service_);
+        }));
   }
 };
 
@@ -595,11 +591,8 @@ void validate_no_reserved_key_in_namespace(
 class python_mstch_function : public mstch_function {
  public:
   python_mstch_function(
-      const t_function* f,
-      mstch_context& ctx,
-      mstch_element_position pos,
-      const t_interface* iface)
-      : mstch_function(f, ctx, pos, iface) {
+      const t_function* f, mstch_context& ctx, mstch_element_position pos)
+      : mstch_function(f, ctx, pos) {
     register_methods(
         this,
         {
@@ -702,41 +695,20 @@ class python_mstch_struct : public mstch_struct {
 class python_mstch_field : public mstch_field {
  public:
   python_mstch_field(
-      const t_field* field,
-      mstch_context& ctx,
-      mstch_element_position pos,
-      const field_generator_context* field_context)
-      : mstch_field(field, ctx, pos, field_context),
-        py_name_(python::get_py3_name(*field)),
+      const t_field* field, mstch_context& ctx, mstch_element_position pos)
+      : mstch_field(field, ctx, pos),
         adapter_annotation_(find_structured_adapter_annotation(*field)),
         transitive_adapter_annotation_(
             get_transitive_annotation_of_adapter_or_null(*field)) {
     register_methods(
         this,
         {
-            // TODO: Whisker migration of field:py_name requires support to get
-            // a back-reference to the parent struct in Whisker
-            {"field:py_name", &python_mstch_field::py_name},
             {"field:user_default_value",
              &python_mstch_field::user_default_value},
             {"field:has_adapter?", &python_mstch_field::adapter},
         });
   }
 
-  mstch::node py_name() {
-    if (boost::algorithm::starts_with(py_name_, "__") &&
-        !boost::algorithm::ends_with(py_name_, "__")) {
-      // TODO: Whisker migration of field:py_name requires support to get a
-      // back-reference to the parent struct in Whisker
-      auto class_name = field_context_->strct->name();
-      boost::algorithm::trim_left_if(class_name, boost::is_any_of("_"));
-      if (class_name.empty()) {
-        return py_name_;
-      }
-      return "_" + class_name + py_name_;
-    }
-    return py_name_;
-  }
   mstch::node user_default_value() {
     const t_const_value* value = field_->get_value();
     if (!value) {
@@ -761,7 +733,6 @@ class python_mstch_field : public mstch_field {
   }
 
  private:
-  const std::string py_name_;
   const t_const* adapter_annotation_;
   const t_const* transitive_adapter_annotation_;
 };
@@ -924,6 +895,20 @@ class t_mstch_python_prototypes_generator : public t_mstch_generator {
     auto base = t_whisker_generator::make_prototype_for_field(proto);
     auto def = whisker::dsl::prototype_builder<h_field>::extends(base);
 
+    def.property("py_name", [this](const t_field& self) {
+      const std::string py_name = python::get_py3_name(self);
+      if (py_name.starts_with("__") && !py_name.ends_with("__")) {
+        const t_structured* parent = context().get_field_parent(&self);
+        std::string class_name = parent == nullptr ? "" : parent->name();
+
+        // Trim leading _ from class name, and use as prefix if non-empty
+        if (size_t first_non_underscore = class_name.find_first_not_of('_');
+            first_non_underscore < class_name.size()) {
+          return "_" + class_name.substr(first_non_underscore) + py_name;
+        }
+      }
+      return py_name;
+    });
     def.property(
         "tablebased_qualifier", [](const t_field& self) -> whisker::string {
           switch (self.qualifier()) {
@@ -1047,12 +1032,12 @@ class t_mstch_python_prototypes_generator : public t_mstch_generator {
     return std::move(def).make();
   }
 
-  prototype<t_service>::ptr make_prototype_for_service(
+  prototype<t_interface>::ptr make_prototype_for_interface(
       const prototype_database& proto) const override {
-    auto base = t_whisker_generator::make_prototype_for_service(proto);
-    auto def = whisker::dsl::prototype_builder<h_service>::extends(base);
+    auto base = t_whisker_generator::make_prototype_for_interface(proto);
+    auto def = whisker::dsl::prototype_builder<h_interface>::extends(base);
 
-    def.property("external_program?", [this](const t_service& self) {
+    def.property("external_program?", [this](const t_interface& self) {
       return get_program() != self.program();
     });
 

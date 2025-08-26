@@ -469,7 +469,7 @@ mstch::node mstch_function::stream_exceptions() {
 }
 
 mstch::node mstch_service::functions() {
-  return make_mstch_functions(get_functions(), service_);
+  return make_mstch_functions(get_functions());
 }
 
 mstch::node mstch_service::extends() {
@@ -509,8 +509,7 @@ mstch::node mstch_const::program() {
 }
 
 mstch::node mstch_const::field() {
-  return context_.field_factory->make_mstch_object(
-      field_, context_, pos_, nullptr);
+  return context_.field_factory->make_mstch_object(field_, context_, pos_);
 }
 
 mstch::node mstch_program::structs() {

@@ -364,9 +364,8 @@ class pyi_mstch_field : public mstch_field {
   pyi_mstch_field(
       const t_field* field,
       mstch_context& context,
-      mstch_element_position position,
-      const field_generator_context* field_context)
-      : mstch_field(field, context, position, field_context) {
+      mstch_element_position position)
+      : mstch_field(field, context, position) {
     register_methods(
         this,
         {
@@ -535,9 +534,8 @@ class pyi_mstch_function : public mstch_function {
   pyi_mstch_function(
       const t_function* function,
       mstch_context& context,
-      mstch_element_position position,
-      const t_interface* iface)
-      : mstch_function(function, context, position, iface) {
+      mstch_element_position position)
+      : mstch_function(function, context, position) {
     register_methods(
         this,
         {

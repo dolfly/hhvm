@@ -1080,7 +1080,7 @@ class cpp_mstch_service : public mstch_service {
         oneway_functions.push_back(function);
       }
     }
-    return make_mstch_functions(oneway_functions, service_);
+    return make_mstch_functions(oneway_functions);
   }
   mstch::node has_oneway() {
     for (const auto* function : get_functions()) {
@@ -1135,10 +1135,8 @@ class cpp_mstch_function : public mstch_function {
       const t_function* function,
       mstch_context& ctx,
       mstch_element_position pos,
-      const t_interface* iface,
       std::shared_ptr<cpp2_generator_context> cpp_ctx)
-      : mstch_function(function, ctx, pos, iface),
-        cpp_context_(std::move(cpp_ctx)) {
+      : mstch_function(function, ctx, pos), cpp_context_(std::move(cpp_ctx)) {
     register_methods(
         this,
         {
@@ -1160,8 +1158,8 @@ class cpp_mstch_function : public mstch_function {
   mstch::node event_based() {
     return function_->get_unstructured_annotation("thread") == "eb" ||
         function_->has_structured_annotation(kCppProcessInEbThreadUri) ||
-        interface_->has_unstructured_annotation("process_in_event_base") ||
-        interface_->has_structured_annotation(kCppProcessInEbThreadUri);
+        interface().has_unstructured_annotation("process_in_event_base") ||
+        interface().has_structured_annotation(kCppProcessInEbThreadUri);
   }
   mstch::node stack_arguments() {
     return cpp2::is_stack_arguments(context_.options, *function_);
@@ -1176,8 +1174,8 @@ class cpp_mstch_function : public mstch_function {
 
   mstch::node prefixed_name() {
     const std::string& name = cpp2::get_name(function_);
-    return interface_->is_interaction()
-        ? fmt::format("{}_{}", interface_->name(), name)
+    return interface().is_interaction()
+        ? fmt::format("{}_{}", interface().name(), name)
         : name;
   }
 
@@ -1186,18 +1184,18 @@ class cpp_mstch_function : public mstch_function {
                kCppGenerateDeprecatedHeaderClientMethodsUri) ||
         function_->has_unstructured_annotation(
             "cpp.generate_deprecated_header_client_methods") ||
-        interface_->has_structured_annotation(
+        interface().has_structured_annotation(
             kCppGenerateDeprecatedHeaderClientMethodsUri) ||
-        interface_->has_unstructured_annotation(
+        interface().has_unstructured_annotation(
             "cpp.generate_deprecated_header_client_methods");
   }
 
   mstch::node virtual_client_methods() {
-    return !generate_reduced_client(*interface_) && !function_->interaction();
+    return !generate_reduced_client(interface()) && !function_->interaction();
   }
 
   mstch::node legacy_client_methods() {
-    return !generate_reduced_client(*interface_) && !function_->interaction();
+    return !generate_reduced_client(interface()) && !function_->interaction();
   }
 
  private:
@@ -1992,10 +1990,8 @@ class cpp_mstch_field : public mstch_field {
       const t_field* f,
       mstch_context& ctx,
       mstch_element_position pos,
-      const field_generator_context* field_context,
       std::shared_ptr<cpp2_generator_context> cpp_ctx)
-      : mstch_field(f, ctx, pos, field_context),
-        cpp_context_(std::move(cpp_ctx)) {
+      : mstch_field(f, ctx, pos), cpp_context_(std::move(cpp_ctx)) {
     register_methods(
         this,
         {
@@ -2082,8 +2078,7 @@ class cpp_mstch_field : public mstch_field {
     return field_context->isset_index;
   }
   mstch::node cpp_type() {
-    const t_structured* parent =
-        context_.whisker_context->get_field_parent(field_);
+    const t_structured* parent = whisker_context().get_field_parent(field_);
     assert(parent != nullptr);
     return cpp_context_->resolver().get_native_type(*field_, *parent);
   }
@@ -2095,8 +2090,7 @@ class cpp_mstch_field : public mstch_field {
     return mangle_field_name(cpp2::get_name(field_));
   }
   mstch::node cpp_storage_type() {
-    const t_structured* parent =
-        context_.whisker_context->get_field_parent(field_);
+    const t_structured* parent = whisker_context().get_field_parent(field_);
     assert(parent != nullptr);
     return cpp_context_->resolver().get_storage_type(*field_, *parent);
   }
@@ -2309,8 +2303,7 @@ class cpp_mstch_field : public mstch_field {
   }
 
   mstch::node type_tag() {
-    const t_structured* parent =
-        context_.whisker_context->get_field_parent(field_);
+    const t_structured* parent = whisker_context().get_field_parent(field_);
     assert(parent != nullptr);
     return cpp_context_->resolver().get_type_tag(*field_, *parent);
   }
@@ -2330,8 +2323,7 @@ class cpp_mstch_field : public mstch_field {
   }
 
   mstch::node use_op_encode() {
-    const t_structured* parent =
-        context_.whisker_context->get_field_parent(field_);
+    const t_structured* parent = whisker_context().get_field_parent(field_);
     assert(parent != nullptr);
     return needs_op_encode(*field_, *parent);
   }
@@ -2374,8 +2366,7 @@ class cpp_mstch_field : public mstch_field {
   }
 
   bool is_eligible_for_storage_name_mangling() const {
-    const t_structured* strct =
-        context_.whisker_context->get_field_parent(field_);
+    const t_structured* strct = whisker_context().get_field_parent(field_);
     assert(strct != nullptr);
 
     if (strct->is<t_union>()) {

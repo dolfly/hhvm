@@ -679,7 +679,7 @@ class mstch_java_service : public mstch_service {
         funcs.push_back(func);
       }
     }
-    return make_mstch_functions(funcs, service_);
+    return make_mstch_functions(funcs);
   }
   mstch::node get_request_response_functions() {
     std::vector<t_function*> funcs;
@@ -689,7 +689,7 @@ class mstch_java_service : public mstch_service {
         funcs.push_back(func);
       }
     }
-    return make_mstch_functions(funcs, service_);
+    return make_mstch_functions(funcs);
   }
   mstch::node get_single_request_functions() {
     std::vector<t_function*> funcs;
@@ -698,7 +698,7 @@ class mstch_java_service : public mstch_service {
         funcs.push_back(func);
       }
     }
-    return make_mstch_functions(funcs, service_);
+    return make_mstch_functions(funcs);
   }
 
   mstch::node get_streaming_functions() {
@@ -708,7 +708,7 @@ class mstch_java_service : public mstch_service {
         funcs.push_back(func);
       }
     }
-    return make_mstch_functions(funcs, service_);
+    return make_mstch_functions(funcs);
   }
 
   mstch::node get_sink_functions() {
@@ -718,7 +718,7 @@ class mstch_java_service : public mstch_service {
         funcs.push_back(func);
       }
     }
-    return make_mstch_functions(funcs, service_);
+    return make_mstch_functions(funcs);
   }
 };
 
@@ -746,11 +746,8 @@ class mstch_java_interaction : public mstch_java_service {
 class mstch_java_function : public mstch_function {
  public:
   mstch_java_function(
-      const t_function* f,
-      mstch_context& ctx,
-      mstch_element_position pos,
-      const t_interface* iface)
-      : mstch_function(f, ctx, pos, iface) {
+      const t_function* f, mstch_context& ctx, mstch_element_position pos)
+      : mstch_function(f, ctx, pos) {
     register_methods(
         this,
         {
@@ -814,11 +811,8 @@ class mstch_java_function : public mstch_function {
 class mstch_java_field : public mstch_field {
  public:
   mstch_java_field(
-      const t_field* f,
-      mstch_context& ctx,
-      mstch_element_position pos,
-      const field_generator_context* field_context)
-      : mstch_field(f, ctx, pos, field_context) {
+      const t_field* f, mstch_context& ctx, mstch_element_position pos)
+      : mstch_field(f, ctx, pos) {
     register_methods(
         this,
         {
@@ -1130,22 +1124,15 @@ class mstch_java_field : public mstch_field {
       return true;
     }
     auto type = field_->get_type();
-    if (type->is<t_typedef>()) {
-      if (t_typedef::get_first_structured_annotation_or_null(
-              type, kStringsUri) != nullptr) {
-        return true;
-      }
+    if (type->is<t_typedef>() &&
+        t_typedef::get_first_structured_annotation_or_null(type, kStringsUri) !=
+            nullptr) {
+      return true;
     }
-    if (field_context_ != nullptr && field_context_->strct != nullptr) {
-      if (field_context_->strct->has_structured_annotation(kStringsUri)) {
-        return true;
-      }
-      if (field_context_->strct->program()->has_structured_annotation(
-              kStringsUri)) {
-        return true;
-      }
-    }
-    return false;
+    const t_structured* parent = whisker_context().get_field_parent(field_);
+    return parent != nullptr &&
+        (parent->has_structured_annotation(kStringsUri) ||
+         parent->program()->has_structured_annotation(kStringsUri));
   }
   mstch::node is_coding_error_action_report() {
     constexpr auto kOnInvalidUtf8 = "onInvalidUtf8";
@@ -1165,18 +1152,18 @@ class mstch_java_field : public mstch_field {
       return is_annotation_map_field_equal(
           annotation, kOnInvalidUtf8, kActionReport);
     }
-    if (field_context_ == nullptr || field_context_->strct == nullptr) {
+    const t_structured* parent = whisker_context().get_field_parent(field_);
+    if (parent == nullptr) {
       return false;
     }
     if (const t_const* annotation =
-            field_context_->strct->find_structured_annotation_or_null(
-                kStringsUri)) {
+            parent->find_structured_annotation_or_null(kStringsUri)) {
       return is_annotation_map_field_equal(
           annotation, kOnInvalidUtf8, kActionReport);
     }
     if (const t_const* annotation =
-            field_context_->strct->program()
-                ->find_structured_annotation_or_null(kStringsUri)) {
+            parent->program()->find_structured_annotation_or_null(
+                kStringsUri)) {
       return is_annotation_map_field_equal(
           annotation, kOnInvalidUtf8, kActionReport);
     }
