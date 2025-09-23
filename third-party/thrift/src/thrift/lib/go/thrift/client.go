@@ -145,16 +145,15 @@ func newOptions(opts ...ClientOption) *clientOptions {
 	}
 
 	if res.transport == TransportIDUnknown {
-		panic(NewTransportException(types.NOT_SUPPORTED, "no transport specified! Please use thrift.WithHeader() or thrift.WithUpgradeToRocket() in the thrift.NewClient call"))
+		panic(types.NewTransportException(types.NOT_SUPPORTED, "no transport specified! Please use thrift.WithHeader() or thrift.WithUpgradeToRocket() in the thrift.NewClient call"))
 	}
 	return res
 }
 
-// DeprecatedNewClient will return a connected thrift protocol object.
+// NewClient will return a connected thrift RequestChannel object.
 // Effectively, this is an open thrift connection to a server.
 // A thrift client can use this connection to communicate with a server.
-// Deprecated: use NewClient instead.
-func DeprecatedNewClient(opts ...ClientOption) (Protocol, error) {
+func NewClient(opts ...ClientOption) (RequestChannel, error) {
 	options := newOptions(opts...)
 
 	// Important: TLS config must be modified *before* the dialerFn below is called.
@@ -195,24 +194,13 @@ func DeprecatedNewClient(opts ...ClientOption) (Protocol, error) {
 	if protocolErr != nil {
 		// Protocol creation failed, close the connection (IMPORTANT!).
 		conn.Close()
-	}
-
-	return protocol, protocolErr
-}
-
-// NewClient will return a connected thrift RequestChannel object.
-// Effectively, this is an open thrift connection to a server.
-// A thrift client can use this connection to communicate with a server.
-func NewClient(opts ...ClientOption) (RequestChannel, error) {
-	proto, err := DeprecatedNewClient(opts...)
-	if err != nil {
-		return nil, err
+		return nil, protocolErr
 	}
 
 	// RocketClient (protocol) implements RequestChannel.
-	// It doesn't need to be wrapped in a SerialChannel.
-	if channel, ok := proto.(RequestChannel); ok {
+	// It doesn't need to be wrapped in a serialChannel.
+	if channel, ok := protocol.(RequestChannel); ok {
 		return channel, nil
 	}
-	return NewSerialChannel(proto), nil
+	return newSerialChannel(protocol), nil
 }

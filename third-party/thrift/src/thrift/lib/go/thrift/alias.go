@@ -110,24 +110,9 @@ var UTF16 Type = types.UTF16
 var STREAM Type = types.STREAM
 var FLOAT Type = types.FLOAT
 
-var INVALID_HEADERS_TYPE = types.INVALID_HEADERS_TYPE
-var BAD_SEQUENCE_ID int32 = types.BAD_SEQUENCE_ID
-
 // Pointerize returns a pointer to the given value.
 func Pointerize[T types.ThriftPointerizable](v T) *T {
 	return types.Pointerize(v)
-}
-
-func PrependError(prepend string, err error) error {
-	return types.PrependError(prepend, err)
-}
-
-func NewTransportException(t int, msg string) types.TransportException {
-	return types.NewTransportException(t, msg)
-}
-
-func NewFormatException(err error) FormatException {
-	return types.NewProtocolException(err)
 }
 
 func NewTransportExceptionFromError(err error) types.TransportException {
